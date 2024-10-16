@@ -45,12 +45,12 @@ namespace MusicPlayerAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> UploadSong([FromForm] IFormFile file)
         {
-            var result = await _songService.UploadSong(file);
-
             if (file == null || file.Length == 0)
             {
                 return BadRequest("No file uploaded.");
             }
+
+            await _songService.UploadSong(file);
 
             return Ok(new { message = "Song uploaded successfully." });
         }

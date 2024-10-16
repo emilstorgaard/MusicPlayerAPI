@@ -4,6 +4,6 @@
     {
         FileStream Stream(string filename);
         List<string> GetAllSongs();
-        Task<string> UploadSong(IFormFile file);
+        Task UploadSong(IFormFile file);
     }
 }

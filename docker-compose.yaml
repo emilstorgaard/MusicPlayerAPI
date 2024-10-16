@@ -5,3 +5,8 @@ services:
     image: music_player_api:latest
     ports:
         - '8280:8080'
+    volumes:
+      - Songs:/app/Songs
+
+volumes:
+  songs:

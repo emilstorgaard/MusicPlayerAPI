@@ -34,21 +34,14 @@
             return new List<string>();
         }
 
-        public async Task<string> UploadSong(IFormFile file)
+        public async Task UploadSong(IFormFile file)
         {
-            if (file == null || file.Length == 0)
-            {
-                return null;
-            }
-
             var filePath = Path.Combine(_uploadFolderPath, file.FileName);
 
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
-
-            return filePath;
         }
     }
 }
