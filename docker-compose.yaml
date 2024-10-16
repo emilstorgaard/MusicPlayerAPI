@@ -6,7 +6,4 @@ services:
     ports:
         - '8280:8080'
     volumes:
-      - Songs:/app/Songs
-
-volumes:
-  songs:
+      - ./Songs:/app/Songs
