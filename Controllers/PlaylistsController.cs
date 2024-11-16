@@ -29,6 +29,15 @@ namespace MusicPlayerAPI.Controllers
             return Ok(playlists);
         }
 
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var playlist = await _playlistService.GetPlaylistByIdAsync(id);
+            if (playlist == null) return NotFound();
+
+            return Ok(playlist);
+        }
+
         [HttpPost]
         public async Task<IActionResult> AddPlaylist(PlaylistDto playlistDto)
         {

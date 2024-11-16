@@ -41,6 +41,15 @@ namespace MusicPlayerAPI.Controllers
             return Ok(songs);
         }
 
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var song = await _songService.GetSongByIdAsync(id);
+            if (song == null) return NotFound();
+
+            return Ok(song);
+        }
+
         [HttpPost]
         public async Task<IActionResult> UploadSong([FromForm] SongDto songDto, [FromForm] IFormFile file)
         {
