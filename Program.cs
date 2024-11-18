@@ -17,6 +17,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Register services
 builder.Services.AddScoped<SongService>();
 builder.Services.AddScoped<PlaylistService>();
+builder.Services.AddScoped<SearchService>();
 
 builder.Services.AddCors(options =>
 {
