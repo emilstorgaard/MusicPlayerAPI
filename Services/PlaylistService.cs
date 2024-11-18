@@ -100,5 +100,20 @@ namespace MusicPlayerAPI.Services
 
             return playlistSongs;
         }
+
+        public async Task<bool> RemoveSongFromPlaylistAsync(int playlistId, int songId)
+        {
+            var playlistSong = await _dbContext.PlaylistSongs
+                .FirstOrDefaultAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
+
+            if (playlistSong == null)
+            {
+                return false;
+            }
+
+            _dbContext.PlaylistSongs.Remove(playlistSong);
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
     }
 }

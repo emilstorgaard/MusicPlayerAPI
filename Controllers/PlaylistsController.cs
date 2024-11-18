@@ -92,5 +92,18 @@ namespace MusicPlayerAPI.Controllers
 
             return Ok(songs);
         }
+
+        [HttpDelete("{playlistId}/songs/{songId}")]
+        public async Task<IActionResult> RemoveSongFromPlaylist(int playlistId, int songId)
+        {
+            var success = await _playlistService.RemoveSongFromPlaylistAsync(playlistId, songId);
+
+            if (!success)
+            {
+                return NotFound("Song not found in the playlist.");
+            }
+
+            return NoContent();
+        }
     }
 }
