@@ -5,7 +5,7 @@ using MusicPlayerAPI.Models.Entities;
 
 namespace MusicPlayerAPI.Services
 {
-    public class PlaylistService : IPlaylistService
+    public class PlaylistService
     {
         public readonly ApplicationDbContext _dbContext;
 

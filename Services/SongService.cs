@@ -5,7 +5,7 @@ using MusicPlayerAPI.Models.Entities;
 
 namespace MusicPlayerAPI.Services
 {
-    public class SongService : ISongService
+    public class SongService
     {
         private readonly string _uploadFolderPath;
         public readonly ApplicationDbContext _dbContext;
