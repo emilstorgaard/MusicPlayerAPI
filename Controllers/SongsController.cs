@@ -15,37 +15,30 @@ namespace MusicPlayerAPI.Controllers
             _songService = songService;
         }
 
-        [HttpGet("stream/song/{filename}")]
-        public IActionResult StreamSong(string filename)
+        [HttpGet("{id:int}/stream")]
+        public async Task<IActionResult> StreamSong(int id)
         {
-            var fileStream = _songService.Stream(filename);
-            if (fileStream != null)
-            {
-                return File(fileStream, "audio/mpeg", enableRangeProcessing: true);
-            }
-            else
-            {
-                return NotFound();
-            }
+            var song = await _songService.GetById(id);
+            if (song == null) return NotFound();
+
+            var fileStream = _songService.Stream(song.FilePath);
+            if (fileStream == null) return NotFound();
+
+            return File(fileStream, "audio/mpeg", enableRangeProcessing: true);
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var songs = await _songService.GetAll();
-            if (songs == null || !songs.Any())
-            {
-                return NotFound("No songs available.");
-            }
-
             return Ok(songs);
         }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var song = await _songService.GetSongByIdAsync(id);
-            if (song == null) return NotFound();
+            var song = await _songService.GetById(id);
+            if (song == null) return NotFound("Song not found");
 
             return Ok(song);
         }
@@ -53,21 +46,19 @@ namespace MusicPlayerAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> UploadSong([FromForm] SongDto songDto, [FromForm] IFormFile file)
         {
-            if (file == null || file.Length == 0)
-            {
-                return BadRequest("No file uploaded.");
-            }
+            if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
 
-            await _songService.UploadSong(songDto, file);
+            var result = await _songService.Upload(songDto, file);
+            if (!result) return NotFound("Failed to upload song");
 
-            return Ok(new { message = "Song uploaded successfully." });
+            return Ok();
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> UpdateSong(int id, SongDto songDto)
         {
-            var result = await _songService.UpdateSong(id, songDto);
-            if (result == null) return NotFound();
+            var result = await _songService.Update(id, songDto);
+            if (!result) return NotFound("Failed to update song");
 
             return Ok();
         }
@@ -75,7 +66,8 @@ namespace MusicPlayerAPI.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteSong(int id)
         {
-            await _songService.DeleteSong(id);
+            var result = await _songService.Delete(id);
+            if (!result) return NotFound("Song not found");
 
             return Ok();
         }

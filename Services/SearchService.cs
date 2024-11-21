@@ -15,10 +15,7 @@ namespace MusicPlayerAPI.Services
 
         public async Task<(IEnumerable<Playlist>, IEnumerable<Song>)> SearchAsync(string query)
         {
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                return (Enumerable.Empty<Playlist>(), Enumerable.Empty<Song>());
-            }
+            if (string.IsNullOrWhiteSpace(query)) return (Enumerable.Empty<Playlist>(), Enumerable.Empty<Song>());
 
             query = query.ToLower();
 

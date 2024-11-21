@@ -17,17 +17,11 @@ namespace MusicPlayerAPI.Services
             Directory.CreateDirectory(_uploadFolderPath);
         }
 
-        public FileStream Stream(string filename)
+        public FileStream? Stream(string filePath)
         {
-            var filePath = Path.Combine(_uploadFolderPath, filename);
-            if (File.Exists(filePath))
-            {
-                return new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            }
-            else
-            {
-                return null;
-            }
+            if (!File.Exists(filePath)) return null;
+            
+            return new FileStream(filePath, FileMode.Open, FileAccess.Read);
         }
 
         public async Task<List<Song>> GetAll()
@@ -35,19 +29,23 @@ namespace MusicPlayerAPI.Services
             return await _dbContext.Songs.ToListAsync();
         }
 
-        public async Task<Song> GetSongByIdAsync(int id)
+        public async Task<Song?> GetById(int id)
         {
-            // Fetch the song from the database using the songId
-            var song = await _dbContext.Songs
-                .FirstOrDefaultAsync(s => s.Id == id);
+            var song = await _dbContext.Songs.FirstOrDefaultAsync(s => s.Id == id);
 
             return song;
         }
 
-        public async Task UploadSong(SongDto songDto, IFormFile file)
+        public async Task<bool> Upload(SongDto songDto, IFormFile file)
         {
-            var filePath = Path.Combine(_uploadFolderPath, file.FileName);
+            if (songDto == null) return false;
 
+            var existingSong = await _dbContext.Songs
+                .FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
+
+            if (existingSong != null) return false;
+
+            var filePath = Path.Combine(_uploadFolderPath, file.FileName);
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
@@ -62,12 +60,21 @@ namespace MusicPlayerAPI.Services
 
             await _dbContext.Songs.AddAsync(song);
             await _dbContext.SaveChangesAsync();
+
+            return true;
         }
 
-        public async Task<bool?> UpdateSong(int id, SongDto songDto)
+        public async Task<bool> Update(int id, SongDto songDto)
         {
-            var song = await _dbContext.Songs.FirstOrDefaultAsync(t => t.Id == id);
-            if (song == null) return null;
+            var song = await GetById(id);
+            if (song == null) return false;
+
+            if (songDto == null) return false;
+
+            var existingSong = await _dbContext.Songs
+                .FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
+
+            if (existingSong != null) return false;
 
             song.Title = songDto.Title;
             song.Artist = songDto.Artist;
@@ -77,22 +84,17 @@ namespace MusicPlayerAPI.Services
             return true;
         }
 
-        public async Task DeleteSong(int id)
+        public async Task<bool> Delete(int id)
         {
-            var song = await _dbContext.Songs.FindAsync(id);
+            var song = await GetById(id);
+            if (song == null) return false;
+            
+            if (File.Exists(song.FilePath)) File.Delete(song.FilePath);
 
-            if (song != null)
-            {
-                // Delete the file from the file system
-                if (File.Exists(song.FilePath))
-                {
-                    File.Delete(song.FilePath);
-                }
+            _dbContext.Songs.Remove(song);
+            await _dbContext.SaveChangesAsync();
 
-                // Remove the song from the database
-                _dbContext.Songs.Remove(song);
-                await _dbContext.SaveChangesAsync();
-            }
+            return true;
         }
     }
 }

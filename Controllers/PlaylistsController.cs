@@ -21,19 +21,14 @@ namespace MusicPlayerAPI.Controllers
         public async Task<IActionResult> GetAll()
         {
             var playlists = await _playlistService.GetAll();
-            if (playlists == null || !playlists.Any())
-            {
-                return NotFound("No playlists available.");
-            }
-
             return Ok(playlists);
         }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var playlist = await _playlistService.GetPlaylistByIdAsync(id);
-            if (playlist == null) return NotFound();
+            var playlist = await _playlistService.GetById(id);
+            if (playlist == null) return NotFound("Playlist not found");
 
             return Ok(playlist);
         }
@@ -41,8 +36,8 @@ namespace MusicPlayerAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> AddPlaylist(PlaylistDto playlistDto)
         {
-            var result = await _playlistService.AddPlaylist(playlistDto);
-            if ((bool)!result) return NotFound();
+            var result = await _playlistService.Add(playlistDto);
+            if (!result) return BadRequest("Failed to add playlist");
 
             return Ok();
         }
@@ -50,8 +45,8 @@ namespace MusicPlayerAPI.Controllers
         [HttpPut("{id:int}")]
         public async Task<IActionResult> UpdatePlaylist(int id, PlaylistDto playlistDto)
         {
-            var result = await _playlistService.UpdatePlaylist(id, playlistDto);
-            if (result == null) return NotFound();
+            var result = await _playlistService.Update(id, playlistDto);
+            if (!result) return BadRequest("Failed to update playlist");
 
             return Ok();
         }
@@ -59,8 +54,8 @@ namespace MusicPlayerAPI.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeletePlaylist(int id)
         {
-            var result = await _playlistService.DeletePlaylist(id);
-            if ((bool)!result) return NotFound();
+            var result = await _playlistService.Delete(id);
+            if (!result) return NotFound("Playlist not found");
 
             return Ok();
         }
@@ -68,42 +63,32 @@ namespace MusicPlayerAPI.Controllers
         [HttpPost("{playlistId}/songs/{songId}")]
         public async Task<IActionResult> AddSongToPlaylist(int playlistId, int songId)
         {
-            var playlist = await _playlistService.GetPlaylistByIdAsync(playlistId);
+            var playlist = await _playlistService.GetById(playlistId);
             if (playlist == null) return NotFound("Playlist not found");
 
-            var song = await _songService.GetSongByIdAsync(songId);
+            var song = await _songService.GetById(songId);
             if (song == null) return NotFound("Song not found");
 
-            var result = await _playlistService.AddSongToPlaylistAsync(playlistId, songId);
-            if (result) return Ok("Song added to playlist");
+            var result = await _playlistService.AddToPlaylist(playlistId, songId);
+            if (!result) return BadRequest("Failed to add song to playlist");
 
-            return BadRequest("Failed to add song to playlist");
+            return Ok();
         }
 
         [HttpGet("{id}/songs")]
         public async Task<IActionResult> GetAllSongsByPlaylistId(int id)
         {
-            var songs = await _playlistService.GetAllSongsByPlaylistIdAsync(id);
-
-            if (songs == null || !songs.Any())
-            {
-                return NotFound("No songs found for this playlist.");
-            }
-
+            var songs = await _playlistService.GetAllByPlaylistId(id);
             return Ok(songs);
         }
 
         [HttpDelete("{playlistId}/songs/{songId}")]
         public async Task<IActionResult> RemoveSongFromPlaylist(int playlistId, int songId)
         {
-            var success = await _playlistService.RemoveSongFromPlaylistAsync(playlistId, songId);
+            var result = await _playlistService.RemoveFromPlaylist(playlistId, songId);
+            if (!result) return NotFound("Song not found in the playlist.");
 
-            if (!success)
-            {
-                return NotFound("Song not found in the playlist.");
-            }
-
-            return NoContent();
+            return Ok();
         }
     }
 }

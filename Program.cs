@@ -26,11 +26,11 @@ builder.Services.AddScoped<SearchService>();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins", policy =>
+    options.AddPolicy("AllowAllOrigins", builder =>
     {
-        policy.WithOrigins("https://musik.emilstorgaard.dk")
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        builder.AllowAnyOrigin();
+        builder.AllowAnyMethod();
+        builder.AllowAnyHeader();
     });
 });
 

@@ -17,10 +17,7 @@ namespace MusicPlayerAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> Search([FromQuery] string query)
         {
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                return BadRequest("Search query cannot be empty.");
-            }
+            if (string.IsNullOrWhiteSpace(query)) return BadRequest("Search query cannot be empty.");
 
             var (playlists, songs) = await _searchService.SearchAsync(query);
 
