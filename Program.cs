@@ -4,7 +4,7 @@ using MusicPlayerAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -24,6 +24,7 @@ builder.Services.AddScoped<SongService>();
 builder.Services.AddScoped<PlaylistService>();
 builder.Services.AddScoped<SearchService>();
 
+// Configure CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins", builder =>
@@ -34,9 +35,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Build the app
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -46,7 +48,7 @@ else
 {
     // Ensure secure headers and HTTPS in production
     app.UseHttpsRedirection();
-    app.UseHsts();
+    app.UseHsts(); 
 }
 
 // Use CORS middleware

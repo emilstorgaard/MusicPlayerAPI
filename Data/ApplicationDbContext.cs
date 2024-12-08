@@ -5,10 +5,7 @@ namespace MusicPlayerAPI.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-        {
-            //ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
-        }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<Song> Songs { get; set; }
         public DbSet<Playlist> Playlists { get; set; }
@@ -18,23 +15,28 @@ namespace MusicPlayerAPI.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Default value configuration for CreatedAt property in Playlist
             modelBuilder.Entity<Playlist>()
-                .Property(p => p.CreatedAt)
+                .Property(p => p.CreatedAtUtc)
                 .HasDefaultValueSql("GETUTCDATE()");
 
             // Configure the many-to-many relationship using the PlaylistSongs table
+            // Composite key for PlaylistSongs
             modelBuilder.Entity<PlaylistSong>()
                 .HasKey(ps => new { ps.PlaylistId, ps.SongId }); // Composite key
 
+            // Define relationships for PlaylistSongs
             modelBuilder.Entity<PlaylistSong>()
                 .HasOne(ps => ps.Playlist)
                 .WithMany(p => p.PlaylistSongs)
-                .HasForeignKey(ps => ps.PlaylistId);
+                .HasForeignKey(ps => ps.PlaylistId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<PlaylistSong>()
                 .HasOne(ps => ps.Song)
                 .WithMany(s => s.PlaylistSongs)
-                .HasForeignKey(ps => ps.SongId);
+                .HasForeignKey(ps => ps.SongId)
+                .OnDelete(DeleteBehavior.Cascade); ;
         }
     }
 }

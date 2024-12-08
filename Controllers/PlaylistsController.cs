@@ -4,7 +4,7 @@ using MusicPlayerAPI.Services;
 
 namespace MusicPlayerAPI.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/playlists")]
     [ApiController]
     public class PlaylistsController : ControllerBase
     {

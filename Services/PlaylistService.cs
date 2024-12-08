@@ -21,25 +21,21 @@ namespace MusicPlayerAPI.Services
 
         public async Task<Playlist?> GetById(int id)
         {
-           var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Id == id);
-
-            return playlist;
+           return await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Id == id);
         }
 
         public async Task<bool> Add(PlaylistDto playlistDto)
         {
             if (playlistDto == null) return false;
 
-            var existingPlaylist = await _dbContext.Playlists
-                .FirstOrDefaultAsync(p => p.Name == playlistDto.Name);
-
+            var existingPlaylist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Name == playlistDto.Name);
             if (existingPlaylist != null) return false;
 
             var copenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
             var playlist = new Playlist
             {
                 Name = playlistDto.Name,
-                CreatedAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, copenhagenTimeZone)
+                CreatedAtUtc = DateTime.UtcNow
             };
 
             await _dbContext.Playlists.AddAsync(playlist);
@@ -52,9 +48,7 @@ namespace MusicPlayerAPI.Services
         {
             if (playlistDto == null) return false;
 
-            var existingPlaylist = await _dbContext.Playlists
-                .FirstOrDefaultAsync(p => p.Name == playlistDto.Name);
-
+            var existingPlaylist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Name == playlistDto.Name);
             if (existingPlaylist != null) return false;
 
             var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(t => t.Id == id);
@@ -108,9 +102,7 @@ namespace MusicPlayerAPI.Services
 
         public async Task<bool> RemoveFromPlaylist(int playlistId, int songId)
         {
-            var playlistSong = await _dbContext.PlaylistSongs
-                .FirstOrDefaultAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
-
+            var playlistSong = await _dbContext.PlaylistSongs.FirstOrDefaultAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
             if (playlistSong == null) return false;
 
             _dbContext.PlaylistSongs.Remove(playlistSong);

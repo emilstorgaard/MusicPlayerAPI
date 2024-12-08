@@ -31,9 +31,7 @@ namespace MusicPlayerAPI.Services
 
         public async Task<Song?> GetById(int id)
         {
-            var song = await _dbContext.Songs.FirstOrDefaultAsync(s => s.Id == id);
-
-            return song;
+            return await _dbContext.Songs.FirstOrDefaultAsync(s => s.Id == id);
         }
 
         public async Task<bool> Upload(SongDto songDto, IFormFile file)
@@ -41,7 +39,6 @@ namespace MusicPlayerAPI.Services
             if (songDto == null || file == null) return false;
 
             var existingSong = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
-
             if (existingSong != null) return false;
 
             var songFolderName = $"{SanitizeForFileSystem(songDto.Title)} - {SanitizeForFileSystem(songDto.Artist)}";
@@ -75,9 +72,7 @@ namespace MusicPlayerAPI.Services
             var song = await GetById(id);
             if (song == null) return false;
 
-            var existingSong = await _dbContext.Songs
-                .FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
-
+            var existingSong = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
             if (existingSong != null) return false;
 
             var oldFolderPath = Path.Combine(_uploadFolderPath, $"{SanitizeForFileSystem(song.Title)} - {SanitizeForFileSystem(song.Artist)}");
@@ -116,7 +111,7 @@ namespace MusicPlayerAPI.Services
         {
             foreach (var invalidChar in Path.GetInvalidFileNameChars())
             {
-                input = input.Replace(invalidChar, '_'); // Replace invalid characters with underscores
+                input = input.Replace(invalidChar, '_');
             }
             return input;
         }
