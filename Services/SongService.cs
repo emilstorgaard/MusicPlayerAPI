@@ -17,11 +17,11 @@ namespace MusicPlayerAPI.Services
             Directory.CreateDirectory(_uploadFolderPath);
         }
 
-        public FileStream? Stream(string filePath)
+        public FileStream? Stream(string songPath)
         {
-            if (!File.Exists(filePath)) return null;
+            if (!File.Exists(songPath)) return null;
             
-            return new FileStream(filePath, FileMode.Open, FileAccess.Read);
+            return new FileStream(songPath, FileMode.Open, FileAccess.Read);
         }
 
         public async Task<List<Song>> GetAll()
@@ -38,15 +38,20 @@ namespace MusicPlayerAPI.Services
         {
             if (songDto == null || file == null) return false;
 
+            var allowedExtensions = new[] { ".mp3" };
+            var fileExtension = Path.GetExtension(file.FileName).ToLower();
+
+            if (!allowedExtensions.Contains(fileExtension)) return false;
+
             var existingSong = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
             if (existingSong != null) return false;
 
-            var songFolderName = $"{SanitizeForFileSystem(songDto.Title)} - {SanitizeForFileSystem(songDto.Artist)}";
+            var songFolderName = Guid.NewGuid().ToString();
             var songFolderPath = Path.Combine(_uploadFolderPath, songFolderName);
 
             Directory.CreateDirectory(songFolderPath);
 
-            var filePath = Path.Combine(songFolderPath, file.FileName);
+            var filePath = Path.Combine(songFolderPath, "song.mp3");
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
@@ -56,7 +61,7 @@ namespace MusicPlayerAPI.Services
             {
                 Title = songDto.Title,
                 Artist = songDto.Artist,
-                FilePath = filePath,
+                FolderPath = songFolderPath,
             };
 
             await _dbContext.Songs.AddAsync(song);
@@ -75,17 +80,6 @@ namespace MusicPlayerAPI.Services
             var existingSong = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
             if (existingSong != null) return false;
 
-            var oldFolderPath = Path.Combine(_uploadFolderPath, $"{SanitizeForFileSystem(song.Title)} - {SanitizeForFileSystem(song.Artist)}");
-            var newFolderPath = Path.Combine(_uploadFolderPath, $"{SanitizeForFileSystem(songDto.Title)} - {SanitizeForFileSystem(songDto.Artist)}");
-
-            if (!string.Equals(oldFolderPath, newFolderPath, StringComparison.OrdinalIgnoreCase))
-            {
-                if (Directory.Exists(oldFolderPath))
-                {
-                    Directory.Move(oldFolderPath, newFolderPath);
-                }
-            }
-
             song.Title = songDto.Title;
             song.Artist = songDto.Artist;
 
@@ -99,21 +93,28 @@ namespace MusicPlayerAPI.Services
             var song = await GetById(id);
             if (song == null) return false;
             
-            if (File.Exists(song.FilePath)) File.Delete(song.FilePath);
+            try
+            {
+                if (Directory.Exists(song.FolderPath))
+                {
+                    var songFiles = Directory.GetFiles(song.FolderPath);
+                    foreach (var file in songFiles)
+                    {
+                        File.Delete(file);
+                    }
+
+                    Directory.Delete(song.FolderPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
 
             _dbContext.Songs.Remove(song);
             await _dbContext.SaveChangesAsync();
 
             return true;
-        }
-
-        private static string SanitizeForFileSystem(string input)
-        {
-            foreach (var invalidChar in Path.GetInvalidFileNameChars())
-            {
-                input = input.Replace(invalidChar, '_');
-            }
-            return input;
         }
     }
 }

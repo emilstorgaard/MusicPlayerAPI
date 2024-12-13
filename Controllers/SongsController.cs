@@ -21,7 +21,8 @@ namespace MusicPlayerAPI.Controllers
             var song = await _songService.GetById(id);
             if (song == null) return NotFound();
 
-            var fileStream = _songService.Stream(song.FilePath);
+            var songFilePath = Path.Combine(song.FolderPath, "song.mp3");
+            var fileStream = _songService.Stream(songFilePath);
             if (fileStream == null) return NotFound();
 
             return File(fileStream, "audio/mpeg", enableRangeProcessing: true);
