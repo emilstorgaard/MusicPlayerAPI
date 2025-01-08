@@ -7,3 +7,4 @@ services:
         - '8280:8080'
     volumes:
       - ./Songs:/app/Songs
+      - ./Media:/app/Media

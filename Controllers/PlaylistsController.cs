@@ -33,19 +33,33 @@ namespace MusicPlayerAPI.Controllers
             return Ok(playlist);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddPlaylist(PlaylistDto playlistDto)
+        [HttpGet("{id:int}/cover")]
+        public async Task<IActionResult> GetCoverImage(int id)
         {
-            var result = await _playlistService.Add(playlistDto);
+            var coverImagePath = await _playlistService.GetCoverImagePathById(id);
+            if (coverImagePath == null)
+                return NotFound("Cover image not found.");
+
+            if (!System.IO.File.Exists(coverImagePath))
+                return NotFound("Cover image file not found.");
+
+            var fileBytes = await System.IO.File.ReadAllBytesAsync(coverImagePath);
+            return File(fileBytes, "image/jpeg");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddPlaylist([FromForm] PlaylistDto playlistDto, [FromForm] IFormFile? coverImageFile)
+        {
+            var result = await _playlistService.Add(playlistDto, coverImageFile);
             if (!result) return BadRequest("Failed to add playlist");
 
             return Ok();
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdatePlaylist(int id, PlaylistDto playlistDto)
+        public async Task<IActionResult> UpdatePlaylist(int id, [FromForm] PlaylistDto playlistDto, [FromForm] IFormFile? coverImageFile)
         {
-            var result = await _playlistService.Update(id, playlistDto);
+            var result = await _playlistService.Update(id, playlistDto, coverImageFile);
             if (!result) return BadRequest("Failed to update playlist");
 
             return Ok();

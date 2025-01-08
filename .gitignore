@@ -5,6 +5,7 @@
 
 # Ignore the songs directory
 /Songs/
+/Media/
 
 # User-specific files
 *.rsuser

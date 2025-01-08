@@ -21,6 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Media\Images\" />
+    <Folder Include="Media\Songs\" />
     <Folder Include="Songs\" />
   </ItemGroup>
 
