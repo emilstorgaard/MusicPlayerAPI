@@ -21,8 +21,7 @@ namespace MusicPlayerAPI.Controllers
             var song = await _songService.GetById(id);
             if (song == null) return NotFound();
 
-            var songFilePath = Path.Combine(song.FolderPath, "song.mp3");
-            var fileStream = _songService.Stream(songFilePath);
+            var fileStream = _songService.Stream(song.AudioFilePath);
             if (fileStream == null) return NotFound();
 
             return File(fileStream, "audio/mpeg", enableRangeProcessing: true);
@@ -44,21 +43,35 @@ namespace MusicPlayerAPI.Controllers
             return Ok(song);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> UploadSong([FromForm] SongDto songDto, [FromForm] IFormFile file)
+        [HttpGet("{id:int}/cover")]
+        public async Task<IActionResult> GetCoverImage(int id)
         {
-            if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
+            var coverImagePath = await _songService.GetCoverImagePathById(id);
+            if (coverImagePath == null)
+                return NotFound("Cover image not found.");
 
-            var result = await _songService.Upload(songDto, file);
+            if (!System.IO.File.Exists(coverImagePath))
+                return NotFound("Cover image file not found.");
+
+            var fileBytes = await System.IO.File.ReadAllBytesAsync(coverImagePath);
+            return File(fileBytes, "image/jpeg");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadSong([FromForm] SongDto songDto, [FromForm] IFormFile audioFile, [FromForm] IFormFile? coverImageFile)
+        {
+            if (audioFile == null || audioFile.Length == 0) return BadRequest("No audio file uploaded.");
+
+            var result = await _songService.Upload(songDto, audioFile, coverImageFile);
             if (!result) return NotFound("Failed to upload song");
 
             return Ok();
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateSong(int id, SongDto songDto)
+        public async Task<IActionResult> UpdateSong(int id, [FromForm] SongDto songDto, [FromForm] IFormFile? coverImageFile)
         {
-            var result = await _songService.Update(id, songDto);
+            var result = await _songService.Update(id, songDto, coverImageFile);
             if (!result) return NotFound("Failed to update song");
 
             return Ok();
