@@ -98,17 +98,15 @@ namespace MusicPlayerAPI.Services
             return true;
         }
 
-        public async Task<bool> Update(int id, SongDto songDto, IFormFile coverImageFile)
+        public async Task<bool> Update(int id, SongDto songDto, IFormFile audioFile, IFormFile coverImageFile)
         {
             if (songDto == null) return false;
 
             var song = await GetById(id);
             if (song == null) return false;
 
-            var existingSong = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
+            var existingSong = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist && p.Id != id);
             if (existingSong != null) return false;
-
-            var filePath = Path.Combine(_uploadImageFolderPath, "default.jpg");
 
             if (coverImageFile != null)
             {
@@ -118,7 +116,7 @@ namespace MusicPlayerAPI.Services
                 if (!allowedImageExtensions.Contains(imageFileExtension)) return false;
 
                 var coverImageFileName = Guid.NewGuid().ToString() + imageFileExtension;
-                filePath = Path.Combine(_uploadImageFolderPath, coverImageFileName);
+                var filePath = Path.Combine(_uploadImageFolderPath, coverImageFileName);
 
                 if (!string.IsNullOrEmpty(song.CoverImagePath) &&
                     !song.CoverImagePath.EndsWith("default.jpg") &&
@@ -131,11 +129,33 @@ namespace MusicPlayerAPI.Services
                 {
                     await coverImageFile.CopyToAsync(stream);
                 }
+
+                song.CoverImagePath = filePath;
+            }
+
+            if (audioFile != null)
+            {
+                var allowedExtensions = new[] { ".mp3" };
+                var audioFileExtension = Path.GetExtension(audioFile.FileName).ToLower();
+
+                if (!allowedExtensions.Contains(audioFileExtension)) return false;
+
+                var audioFileName = Guid.NewGuid().ToString() + audioFileExtension;
+
+                var audioFilePath = Path.Combine(_uploadAudioFolderPath, audioFileName);
+
+                File.Delete(song.AudioFilePath);
+
+                using (var stream = new FileStream(audioFilePath, FileMode.Create))
+                {
+                    await audioFile.CopyToAsync(stream);
+                }
+
+                song.AudioFilePath = audioFilePath;
             }
 
             song.Title = songDto.Title;
             song.Artist = songDto.Artist;
-            song.CoverImagePath = filePath;
 
             await _dbContext.SaveChangesAsync();
 

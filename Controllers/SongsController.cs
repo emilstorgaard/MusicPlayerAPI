@@ -69,9 +69,9 @@ namespace MusicPlayerAPI.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateSong(int id, [FromForm] SongDto songDto, [FromForm] IFormFile? coverImageFile)
+        public async Task<IActionResult> UpdateSong(int id, [FromForm] SongDto songDto, [FromForm] IFormFile? audioFile, [FromForm] IFormFile? coverImageFile)
         {
-            var result = await _songService.Update(id, songDto, coverImageFile);
+            var result = await _songService.Update(id, songDto, audioFile, coverImageFile);
             if (!result) return NotFound("Failed to update song");
 
             return Ok();

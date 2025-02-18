@@ -19,6 +19,9 @@ namespace MusicPlayerAPI.Controllers
         {
             if (string.IsNullOrWhiteSpace(query)) return BadRequest("Search query cannot be empty.");
 
+            if (query.Length < 3)
+                return BadRequest("Search query must be at least 3 characters long.");
+
             var (playlists, songs) = await _searchService.SearchAsync(query);
 
             return Ok(new

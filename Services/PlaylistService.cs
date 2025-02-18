@@ -80,13 +80,11 @@ namespace MusicPlayerAPI.Services
         {
             if (playlistDto == null) return false;
 
-            var existingPlaylist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Name == playlistDto.Name);
+            var existingPlaylist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Name == playlistDto.Name && p.Id != id);
             if (existingPlaylist != null) return false;
 
             var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(t => t.Id == id);
             if (playlist == null) return false;
-
-            var filePath = Path.Combine(_uploadFolderPath, "default.jpg");
 
             if (coverImageFile != null)
             {
@@ -96,7 +94,7 @@ namespace MusicPlayerAPI.Services
                 if (!allowedImageExtensions.Contains(imageFileExtension)) return false;
 
                 var coverImageFileName = Guid.NewGuid().ToString() + imageFileExtension;
-                filePath = Path.Combine(_uploadFolderPath, coverImageFileName);
+                var filePath = Path.Combine(_uploadFolderPath, coverImageFileName);
 
                 if (!string.IsNullOrEmpty(playlist.CoverImagePath) &&
                     !playlist.CoverImagePath.EndsWith("default.jpg") &&
@@ -109,10 +107,11 @@ namespace MusicPlayerAPI.Services
                 {
                     await coverImageFile.CopyToAsync(stream);
                 }
+
+                playlist.CoverImagePath = filePath;
             }
 
             playlist.Name = playlistDto.Name;
-            playlist.CoverImagePath = filePath;
 
             await _dbContext.SaveChangesAsync();
 
