@@ -38,14 +38,10 @@ namespace MusicPlayerAPI.Controllers
         {
             var playlist = await _playlistService.GetById(id);
             var coverImagePath = playlist?.CoverImagePath;
-            if (coverImagePath == null)
+            if (coverImagePath == null || !System.IO.File.Exists(coverImagePath))
                 return NotFound("Cover image not found.");
 
-            if (!System.IO.File.Exists(coverImagePath))
-                return NotFound("Cover image file not found.");
-
-            var fileBytes = await System.IO.File.ReadAllBytesAsync(coverImagePath);
-            return File(fileBytes, "image/jpeg");
+            return PhysicalFile(playlist.CoverImagePath, "image/jpeg");
         }
 
         [HttpPost]
@@ -64,6 +60,15 @@ namespace MusicPlayerAPI.Controllers
             if (!result) return BadRequest("Failed to update playlist");
 
             return Ok();
+        }
+
+        [HttpPut("{id:int}/cover/remove")]
+        public async Task<IActionResult> RemoveCoverImage(int id)
+        {
+            var result = await _playlistService.UpdateCoverImage(id);
+            if (!result) return BadRequest("Failed to remove cover image");
+
+            return Ok(new { message = "Cover image removed, default image applied." });
         }
 
         [HttpDelete("{id:int}")]

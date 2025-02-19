@@ -54,6 +54,19 @@ namespace MusicPlayerAPI.Services
             return true;
         }
 
+        public async Task<bool> UpdateCoverImage(int playlistId)
+        {
+            var playlist = await _dbContext.Playlists.FindAsync(playlistId);
+            if (playlist == null) return false;
+
+            FileHelper.DeleteFile(playlist.CoverImagePath);
+            playlist.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_uploadFolderPath);
+
+            await _dbContext.SaveChangesAsync();
+
+            return true;
+        }
+
         public async Task<bool> Update(int id, PlaylistDto playlistDto, IFormFile coverImageFile)
         {
             var playlist = await GetById(id);
