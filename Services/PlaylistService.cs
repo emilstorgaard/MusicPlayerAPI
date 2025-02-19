@@ -7,8 +7,10 @@ namespace MusicPlayerAPI.Services
 {
     public class PlaylistService
     {
+        private readonly ApplicationDbContext _dbContext;
         private readonly string _uploadFolderPath;
-        public readonly ApplicationDbContext _dbContext;
+        private static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png" };
+        private const string DefaultCoverImage = "default.jpg";
 
         public PlaylistService(ApplicationDbContext dbContext)
         {
@@ -24,43 +26,19 @@ namespace MusicPlayerAPI.Services
 
         public async Task<Playlist?> GetById(int id)
         {
-           return await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Id == id);
-        }
-
-        public async Task<string?> GetCoverImagePathById(int id)
-        {
-            var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Id == id);
-            if (playlist == null) return null;
-
-            return playlist.CoverImagePath;
+           return await _dbContext.Playlists.FindAsync(id);
         }
 
         public async Task<bool> Add(PlaylistDto playlistDto, IFormFile coverImageFile)
         {
             if (playlistDto == null) return false;
 
-            var existingPlaylist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Name == playlistDto.Name);
-            if (existingPlaylist != null) return false;
+            var existingPlaylist = await _dbContext.Playlists.AnyAsync(p => p.Name == playlistDto.Name);
+            if (existingPlaylist) return false;
 
-            var filePath = Path.Combine(_uploadFolderPath, "default.jpg");
-
-            if (coverImageFile != null)
-            {
-                var allowedImageExtensions = new[] { ".jpg", ".jpeg", ".png" };
-                var imageFileExtension = Path.GetExtension(coverImageFile.FileName).ToLower();
-
-                if (!allowedImageExtensions.Contains(imageFileExtension)) return false;
-
-                var coverImageFileName = Guid.NewGuid().ToString() + imageFileExtension;
-
-                filePath = Path.Combine(_uploadFolderPath, coverImageFileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await coverImageFile.CopyToAsync(stream);
-                }
-
-            }
+            var filePath = coverImageFile != null && IsValidFile(coverImageFile, AllowedImageExtensions)
+                ? SaveFile(coverImageFile, _uploadFolderPath)
+                : Path.Combine(_uploadFolderPath, DefaultCoverImage);
 
             var copenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
             var playlist = new Playlist
@@ -78,37 +56,16 @@ namespace MusicPlayerAPI.Services
 
         public async Task<bool> Update(int id, PlaylistDto playlistDto, IFormFile coverImageFile)
         {
-            if (playlistDto == null) return false;
-
-            var existingPlaylist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Name == playlistDto.Name && p.Id != id);
-            if (existingPlaylist != null) return false;
-
-            var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(t => t.Id == id);
+            var playlist = await GetById(id);
             if (playlist == null) return false;
 
-            if (coverImageFile != null)
+            var existingPlaylist = await _dbContext.Playlists.AnyAsync(p => p.Id != id && p.Name == playlistDto.Name);
+            if (existingPlaylist) return false;
+
+            if (coverImageFile != null && IsValidFile(coverImageFile, AllowedImageExtensions))
             {
-                var allowedImageExtensions = new[] { ".jpg", ".jpeg", ".png" };
-                var imageFileExtension = Path.GetExtension(coverImageFile.FileName).ToLower();
-
-                if (!allowedImageExtensions.Contains(imageFileExtension)) return false;
-
-                var coverImageFileName = Guid.NewGuid().ToString() + imageFileExtension;
-                var filePath = Path.Combine(_uploadFolderPath, coverImageFileName);
-
-                if (!string.IsNullOrEmpty(playlist.CoverImagePath) &&
-                    !playlist.CoverImagePath.EndsWith("default.jpg") &&
-                    File.Exists(playlist.CoverImagePath))
-                {
-                    File.Delete(playlist.CoverImagePath);
-                }
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await coverImageFile.CopyToAsync(stream);
-                }
-
-                playlist.CoverImagePath = filePath;
+                DeleteFile(playlist.CoverImagePath);
+                playlist.CoverImagePath = SaveFile(coverImageFile, _uploadFolderPath);
             }
 
             playlist.Name = playlistDto.Name;
@@ -120,15 +77,10 @@ namespace MusicPlayerAPI.Services
 
         public async Task<bool> Delete(int id)
         {
-            var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(t => t.Id == id);
+            var playlist = await _dbContext.Playlists.FindAsync(id);
             if (playlist == null) return false;
 
-            if (!string.IsNullOrEmpty(playlist.CoverImagePath) &&
-           !playlist.CoverImagePath.EndsWith("default.jpg") &&
-           File.Exists(playlist.CoverImagePath))
-            {
-                File.Delete(playlist.CoverImagePath);
-            }
+            DeleteFile(playlist.CoverImagePath);
 
             _dbContext.Playlists.Remove(playlist);
             await _dbContext.SaveChangesAsync();
@@ -138,8 +90,8 @@ namespace MusicPlayerAPI.Services
 
         public async Task<bool> AddToPlaylist(int playlistId, int songId)
         {
-            var exists = await _dbContext.PlaylistSongs.AnyAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
-            if (exists) return false;
+            var songOnPlaylist = await _dbContext.PlaylistSongs.AnyAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
+            if (songOnPlaylist) return false;
 
             var playlistSong = new PlaylistSong
             {
@@ -153,7 +105,7 @@ namespace MusicPlayerAPI.Services
             return true;
         }
 
-        public async Task<IEnumerable<Song>> GetAllByPlaylistId(int playlistId)
+        public async Task<IEnumerable<Song>> GetAllSongsByPlaylistId(int playlistId)
         {
             var playlistSongs = await _dbContext.PlaylistSongs
                 .Where(ps => ps.PlaylistId == playlistId)
@@ -173,6 +125,28 @@ namespace MusicPlayerAPI.Services
             await _dbContext.SaveChangesAsync();
 
             return true;
+        }
+
+        private static bool IsValidFile(IFormFile file, string[] allowedExtensions)
+        {
+            return allowedExtensions.Contains(Path.GetExtension(file.FileName).ToLower());
+        }
+
+        private static string SaveFile(IFormFile file, string folderPath)
+        {
+            var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName).ToLower();
+            var filePath = Path.Combine(folderPath, fileName);
+            using var stream = new FileStream(filePath, FileMode.Create);
+            file.CopyTo(stream);
+            return filePath;
+        }
+
+        private static void DeleteFile(string? filePath)
+        {
+            if (!string.IsNullOrEmpty(filePath) && !filePath.EndsWith(DefaultCoverImage) && File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ namespace MusicPlayerAPI.Services
 {
     public class SearchService
     {
-        public readonly ApplicationDbContext _dbContext;
+        private readonly ApplicationDbContext _dbContext;
 
         public SearchService(ApplicationDbContext dbContext)
         {

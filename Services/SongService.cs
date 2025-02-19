@@ -7,9 +7,12 @@ namespace MusicPlayerAPI.Services
 {
     public class SongService
     {
+        private readonly ApplicationDbContext _dbContext;
         private readonly string _uploadAudioFolderPath;
         private readonly string _uploadImageFolderPath;
-        public readonly ApplicationDbContext _dbContext;
+        private static readonly string[] AllowedAudioExtensions = { ".mp3" };
+        private static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png" };
+        private const string DefaultCoverImage = "default.jpg";
 
         public SongService(ApplicationDbContext dbContext)
         {
@@ -22,9 +25,7 @@ namespace MusicPlayerAPI.Services
 
         public FileStream? Stream(string songPath)
         {
-            if (!File.Exists(songPath)) return null;
-            
-            return new FileStream(songPath, FileMode.Open, FileAccess.Read);
+            return File.Exists(songPath) ? File.OpenRead(songPath) : null;
         }
 
         public async Task<List<Song>> GetAll()
@@ -34,61 +35,27 @@ namespace MusicPlayerAPI.Services
 
         public async Task<Song?> GetById(int id)
         {
-            return await _dbContext.Songs.FirstOrDefaultAsync(s => s.Id == id);
+            return await _dbContext.Songs.FindAsync(id);
         }
 
-        public async Task<string?> GetCoverImagePathById(int id)
+        public async Task<bool> Upload(SongDto songDto, IFormFile audioFile, IFormFile? coverImageFile)
         {
-            var song = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Id == id);
-            if (song == null) return null;
+            if (songDto == null || audioFile == null || !IsValidFile(audioFile, AllowedAudioExtensions)) return false;
 
-            return song.CoverImagePath;
-        }
+            var existingSong = await _dbContext.Songs.AnyAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
+            if (existingSong) return false;
 
-        public async Task<bool> Upload(SongDto songDto, IFormFile audioFile, IFormFile coverImageFile)
-        {
-            if (songDto == null || audioFile == null) return false;
+            var audioFileName = SaveFile(audioFile, _uploadAudioFolderPath);
 
-            var allowedExtensions = new[] { ".mp3" };
-            var audioFileExtension = Path.GetExtension(audioFile.FileName).ToLower();
-
-            if (!allowedExtensions.Contains(audioFileExtension)) return false;
-
-            var existingSong = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
-            if (existingSong != null) return false;
-
-            var audioFileName = Guid.NewGuid().ToString() + audioFileExtension;
-
-            var audioFilePath = Path.Combine(_uploadAudioFolderPath, audioFileName);
-            using (var stream = new FileStream(audioFilePath, FileMode.Create))
-            {
-                await audioFile.CopyToAsync(stream);
-            }
-
-            var coverImagePath = Path.Combine(_uploadImageFolderPath, "default.jpg");
-
-            if (coverImageFile != null)
-            {
-                var allowedImageExtensions = new[] { ".jpg", ".jpeg", ".png" };
-                var imageFileExtension = Path.GetExtension(coverImageFile.FileName).ToLower();
-
-                if (!allowedImageExtensions.Contains(imageFileExtension)) return false;
-
-                var coverImageFileName = Guid.NewGuid().ToString() + imageFileExtension;
-
-                coverImagePath = Path.Combine(_uploadImageFolderPath, coverImageFileName);
-
-                using (var stream = new FileStream(coverImagePath, FileMode.Create))
-                {
-                    await coverImageFile.CopyToAsync(stream);
-                }
-            }
+            var coverImagePath = coverImageFile != null && IsValidFile(coverImageFile, AllowedImageExtensions)
+                ? SaveFile(coverImageFile, _uploadImageFolderPath)
+                : Path.Combine(_uploadImageFolderPath, DefaultCoverImage);
 
             var song = new Song
             {
                 Title = songDto.Title,
                 Artist = songDto.Artist,
-                AudioFilePath = audioFilePath,
+                AudioFilePath = audioFileName,
                 CoverImagePath = coverImagePath
             };
 
@@ -100,58 +67,22 @@ namespace MusicPlayerAPI.Services
 
         public async Task<bool> Update(int id, SongDto songDto, IFormFile audioFile, IFormFile coverImageFile)
         {
-            if (songDto == null) return false;
-
             var song = await GetById(id);
             if (song == null) return false;
 
-            var existingSong = await _dbContext.Songs.FirstOrDefaultAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist && p.Id != id);
-            if (existingSong != null) return false;
+            var existingSong = await _dbContext.Songs.AnyAsync(s => s.Id != id && s.Title == songDto.Title && s.Artist == songDto.Artist);
+            if (existingSong) return false;
 
-            if (coverImageFile != null)
+            if (coverImageFile != null && IsValidFile(coverImageFile, AllowedImageExtensions))
             {
-                var allowedImageExtensions = new[] { ".jpg", ".jpeg", ".png" };
-                var imageFileExtension = Path.GetExtension(coverImageFile.FileName).ToLower();
-
-                if (!allowedImageExtensions.Contains(imageFileExtension)) return false;
-
-                var coverImageFileName = Guid.NewGuid().ToString() + imageFileExtension;
-                var filePath = Path.Combine(_uploadImageFolderPath, coverImageFileName);
-
-                if (!string.IsNullOrEmpty(song.CoverImagePath) &&
-                    !song.CoverImagePath.EndsWith("default.jpg") &&
-                    File.Exists(song.CoverImagePath))
-                {
-                    File.Delete(song.CoverImagePath);
-                }
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await coverImageFile.CopyToAsync(stream);
-                }
-
-                song.CoverImagePath = filePath;
+                DeleteFile(song.CoverImagePath);
+                song.CoverImagePath = SaveFile(coverImageFile, _uploadImageFolderPath);
             }
 
-            if (audioFile != null)
+            if (audioFile != null && IsValidFile(audioFile, AllowedAudioExtensions))
             {
-                var allowedExtensions = new[] { ".mp3" };
-                var audioFileExtension = Path.GetExtension(audioFile.FileName).ToLower();
-
-                if (!allowedExtensions.Contains(audioFileExtension)) return false;
-
-                var audioFileName = Guid.NewGuid().ToString() + audioFileExtension;
-
-                var audioFilePath = Path.Combine(_uploadAudioFolderPath, audioFileName);
-
-                File.Delete(song.AudioFilePath);
-
-                using (var stream = new FileStream(audioFilePath, FileMode.Create))
-                {
-                    await audioFile.CopyToAsync(stream);
-                }
-
-                song.AudioFilePath = audioFilePath;
+                DeleteFile(song.AudioFilePath);
+                song.AudioFilePath = SaveFile(audioFile, _uploadAudioFolderPath);
             }
 
             song.Title = songDto.Title;
@@ -169,18 +100,39 @@ namespace MusicPlayerAPI.Services
             
             try
             {
-                File.Delete(song.AudioFilePath);
-                File.Delete(song.CoverImagePath);
+                DeleteFile(song.AudioFilePath);
+                DeleteFile(song.CoverImagePath);
+                _dbContext.Songs.Remove(song);
+                await _dbContext.SaveChangesAsync();
             }
-            catch (Exception ex)
+            catch
             {
                 return false;
             }
 
-            _dbContext.Songs.Remove(song);
-            await _dbContext.SaveChangesAsync();
-
             return true;
+        }
+
+        private static bool IsValidFile(IFormFile file, string[] allowedExtensions)
+        {
+            return allowedExtensions.Contains(Path.GetExtension(file.FileName).ToLower());
+        }
+
+        private static string SaveFile(IFormFile file, string folderPath)
+        {
+            var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName).ToLower();
+            var filePath = Path.Combine(folderPath, fileName);
+            using var stream = new FileStream(filePath, FileMode.Create);
+            file.CopyTo(stream);
+            return filePath;
+        }
+
+        private static void DeleteFile(string? filePath)
+        {
+            if (!string.IsNullOrEmpty(filePath) && !filePath.EndsWith(DefaultCoverImage) && File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
         }
     }
 }

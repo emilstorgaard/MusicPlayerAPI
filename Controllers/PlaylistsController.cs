@@ -36,7 +36,8 @@ namespace MusicPlayerAPI.Controllers
         [HttpGet("{id:int}/cover")]
         public async Task<IActionResult> GetCoverImage(int id)
         {
-            var coverImagePath = await _playlistService.GetCoverImagePathById(id);
+            var playlist = await _playlistService.GetById(id);
+            var coverImagePath = playlist?.CoverImagePath;
             if (coverImagePath == null)
                 return NotFound("Cover image not found.");
 
@@ -92,7 +93,7 @@ namespace MusicPlayerAPI.Controllers
         [HttpGet("{id}/songs")]
         public async Task<IActionResult> GetAllSongsByPlaylistId(int id)
         {
-            var songs = await _playlistService.GetAllByPlaylistId(id);
+            var songs = await _playlistService.GetAllSongsByPlaylistId(id);
             return Ok(songs);
         }
 
