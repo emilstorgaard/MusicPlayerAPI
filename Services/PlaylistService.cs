@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MusicPlayerAPI.Data;
+using MusicPlayerAPI.Helpers;
 using MusicPlayerAPI.Models.Dtos;
 using MusicPlayerAPI.Models.Entities;
 
@@ -10,7 +11,6 @@ namespace MusicPlayerAPI.Services
         private readonly ApplicationDbContext _dbContext;
         private readonly string _uploadFolderPath;
         private static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png" };
-        private const string DefaultCoverImage = "default.jpg";
 
         public PlaylistService(ApplicationDbContext dbContext)
         {
@@ -36,9 +36,9 @@ namespace MusicPlayerAPI.Services
             var existingPlaylist = await _dbContext.Playlists.AnyAsync(p => p.Name == playlistDto.Name);
             if (existingPlaylist) return false;
 
-            var filePath = coverImageFile != null && IsValidFile(coverImageFile, AllowedImageExtensions)
-                ? SaveFile(coverImageFile, _uploadFolderPath)
-                : Path.Combine(_uploadFolderPath, DefaultCoverImage);
+            var filePath = coverImageFile != null && FileHelper.IsValidFile(coverImageFile, AllowedImageExtensions)
+                ? FileHelper.SaveFile(coverImageFile, _uploadFolderPath)
+                : FileHelper.GetDefaultCoverImagePath(_uploadFolderPath);
 
             var copenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
             var playlist = new Playlist
@@ -62,10 +62,10 @@ namespace MusicPlayerAPI.Services
             var existingPlaylist = await _dbContext.Playlists.AnyAsync(p => p.Id != id && p.Name == playlistDto.Name);
             if (existingPlaylist) return false;
 
-            if (coverImageFile != null && IsValidFile(coverImageFile, AllowedImageExtensions))
+            if (coverImageFile != null && FileHelper.IsValidFile(coverImageFile, AllowedImageExtensions))
             {
-                DeleteFile(playlist.CoverImagePath);
-                playlist.CoverImagePath = SaveFile(coverImageFile, _uploadFolderPath);
+                FileHelper.DeleteFile(playlist.CoverImagePath);
+                playlist.CoverImagePath = FileHelper.SaveFile(coverImageFile, _uploadFolderPath);
             }
 
             playlist.Name = playlistDto.Name;
@@ -80,7 +80,7 @@ namespace MusicPlayerAPI.Services
             var playlist = await _dbContext.Playlists.FindAsync(id);
             if (playlist == null) return false;
 
-            DeleteFile(playlist.CoverImagePath);
+            FileHelper.DeleteFile(playlist.CoverImagePath);
 
             _dbContext.Playlists.Remove(playlist);
             await _dbContext.SaveChangesAsync();
@@ -125,28 +125,6 @@ namespace MusicPlayerAPI.Services
             await _dbContext.SaveChangesAsync();
 
             return true;
-        }
-
-        private static bool IsValidFile(IFormFile file, string[] allowedExtensions)
-        {
-            return allowedExtensions.Contains(Path.GetExtension(file.FileName).ToLower());
-        }
-
-        private static string SaveFile(IFormFile file, string folderPath)
-        {
-            var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName).ToLower();
-            var filePath = Path.Combine(folderPath, fileName);
-            using var stream = new FileStream(filePath, FileMode.Create);
-            file.CopyTo(stream);
-            return filePath;
-        }
-
-        private static void DeleteFile(string? filePath)
-        {
-            if (!string.IsNullOrEmpty(filePath) && !filePath.EndsWith(DefaultCoverImage) && File.Exists(filePath))
-            {
-                File.Delete(filePath);
-            }
         }
     }
 }
