@@ -19,22 +19,32 @@ namespace MusicPlayerAPI.Services
             Directory.CreateDirectory(_uploadFolderPath);
         }
 
-        public async Task<List<Playlist>> GetAll()
+        public async Task<StatusResult<List<Playlist>>> GetAll()
         {
-            return await _dbContext.Playlists.ToListAsync();
+            var playlists = await _dbContext.Playlists.ToListAsync();
+            if (playlists == null || !playlists.Any())
+                return StatusResult<List<Playlist>>.Failure(404, "No playlists found.");
+
+            return StatusResult<List<Playlist>>.Success(playlists, 200);
         }
 
-        public async Task<Playlist?> GetById(int id)
+
+        public async Task<StatusResult<Playlist>> GetById(int id)
         {
-           return await _dbContext.Playlists.FindAsync(id);
+            var playlist = await _dbContext.Playlists.FindAsync(id);
+            if (playlist == null) return StatusResult<Playlist>.Failure(404, "Playlist not found.");
+
+            return StatusResult<Playlist>.Success(playlist, 200);
         }
 
-        public async Task<bool> Add(PlaylistDto playlistDto, IFormFile coverImageFile)
+        public async Task<StatusResult> Add(PlaylistDto playlistDto, IFormFile? coverImageFile)
         {
-            if (playlistDto == null) return false;
+            if (playlistDto == null)
+                return StatusResult.Failure(400, "Playlist data is required.");
 
             var existingPlaylist = await _dbContext.Playlists.AnyAsync(p => p.Name == playlistDto.Name);
-            if (existingPlaylist) return false;
+            if (existingPlaylist)
+                return StatusResult.Failure(400, "Playlist already exists.");
 
             var filePath = coverImageFile != null && FileHelper.IsValidFile(coverImageFile, AllowedImageExtensions)
                 ? FileHelper.SaveFile(coverImageFile, _uploadFolderPath)
@@ -51,29 +61,34 @@ namespace MusicPlayerAPI.Services
             await _dbContext.Playlists.AddAsync(playlist);
             await _dbContext.SaveChangesAsync();
 
-            return true;
+            return StatusResult.Success(201);
         }
 
-        public async Task<bool> UpdateCoverImage(int playlistId)
+
+        public async Task<StatusResult> UpdateCoverImage(int playlistId)
         {
             var playlist = await _dbContext.Playlists.FindAsync(playlistId);
-            if (playlist == null) return false;
+            if (playlist == null) return StatusResult.Failure(404, "Playlist not found.");
 
             FileHelper.DeleteFile(playlist.CoverImagePath);
             playlist.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_uploadFolderPath);
 
             await _dbContext.SaveChangesAsync();
 
-            return true;
+            return StatusResult.Success(200);
         }
 
-        public async Task<bool> Update(int id, PlaylistDto playlistDto, IFormFile coverImageFile)
+        public async Task<StatusResult> Update(int id, PlaylistDto playlistDto, IFormFile? coverImageFile)
         {
-            var playlist = await GetById(id);
-            if (playlist == null) return false;
+            var result = await GetById(id);
+            if (result.Status != 200) return StatusResult.Failure(result.Status, result.Message ?? "An error occurred.");
+
+            var playlist = result.Data;
+
+            if (playlist == null) return StatusResult.Failure(404, "Playlist not found.");
 
             var existingPlaylist = await _dbContext.Playlists.AnyAsync(p => p.Id != id && p.Name == playlistDto.Name);
-            if (existingPlaylist) return false;
+            if (existingPlaylist) return StatusResult.Failure(409, "A playlist with the same name already exists.");
 
             if (coverImageFile != null && FileHelper.IsValidFile(coverImageFile, AllowedImageExtensions))
             {
@@ -85,40 +100,57 @@ namespace MusicPlayerAPI.Services
 
             await _dbContext.SaveChangesAsync();
 
-            return true;
+            return StatusResult.Success(200);
         }
 
-        public async Task<bool> Delete(int id)
+        public async Task<StatusResult> Delete(int id)
         {
-            var playlist = await _dbContext.Playlists.FindAsync(id);
-            if (playlist == null) return false;
+            var result = await GetById(id);
 
-            FileHelper.DeleteFile(playlist.CoverImagePath);
+            if (result.Status != 200) return StatusResult.Failure(result.Status, result.Message ?? "An error occurred.");
+            var playlist = result.Data;
 
-            _dbContext.Playlists.Remove(playlist);
-            await _dbContext.SaveChangesAsync();
+            if (playlist == null) return StatusResult.Failure(404, "Playlist not found.");
 
-            return true;
+            try
+            {
+                FileHelper.DeleteFile(playlist.CoverImagePath);
+                _dbContext.Playlists.Remove(playlist);
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusResult.Failure(500, $"Error occurred while deleting: {ex.Message}");
+            }
+
+            return StatusResult.Success(200);
         }
 
-        public async Task<bool> AddToPlaylist(int playlistId, int songId)
+        public async Task<StatusResult> AddToPlaylist(int playlistId, int songId)
         {
             var songOnPlaylist = await _dbContext.PlaylistSongs.AnyAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
-            if (songOnPlaylist) return false;
+            if (songOnPlaylist) return StatusResult.Failure(409, "Song already exists on the playlist.");
+
+            var playlist = await _dbContext.Playlists.FindAsync(playlistId);
+            var song = await _dbContext.Songs.FindAsync(songId);
+
+            if (playlist == null || song == null) return StatusResult.Failure(404, "Playlist or Song not found.");
 
             var playlistSong = new PlaylistSong
             {
                 PlaylistId = playlistId,
-                SongId = songId
+                SongId = songId,
+                Song = song,
+                Playlist = playlist
             };
 
             _dbContext.PlaylistSongs.Add(playlistSong);
             await _dbContext.SaveChangesAsync();
 
-            return true;
+            return StatusResult.Success(200);
         }
 
-        public async Task<IEnumerable<Song>> GetAllSongsByPlaylistId(int playlistId)
+        public async Task<StatusResult<List<Song>>> GetAllSongsByPlaylistId(int playlistId)
         {
             var playlistSongs = await _dbContext.PlaylistSongs
                 .Where(ps => ps.PlaylistId == playlistId)
@@ -126,18 +158,18 @@ namespace MusicPlayerAPI.Services
                 .Select(ps => ps.Song)
                 .ToListAsync();
 
-            return playlistSongs;
+            return StatusResult<List<Song>>.Success(playlistSongs, 200);
         }
 
-        public async Task<bool> RemoveFromPlaylist(int playlistId, int songId)
+        public async Task<StatusResult> RemoveFromPlaylist(int playlistId, int songId)
         {
             var playlistSong = await _dbContext.PlaylistSongs.FirstOrDefaultAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
-            if (playlistSong == null) return false;
+            if (playlistSong == null) return StatusResult.Failure(404, "Song not found on the playlist.");
 
             _dbContext.PlaylistSongs.Remove(playlistSong);
             await _dbContext.SaveChangesAsync();
 
-            return true;
+            return StatusResult.Success(200);
         }
     }
 }

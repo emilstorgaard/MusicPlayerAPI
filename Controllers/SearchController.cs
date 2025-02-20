@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using MusicPlayerAPI.Models.Entities;
 using MusicPlayerAPI.Services;
 
 namespace MusicPlayerAPI.Controllers
@@ -17,12 +18,10 @@ namespace MusicPlayerAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> Search([FromQuery] string query)
         {
-            if (string.IsNullOrWhiteSpace(query)) return BadRequest("Search query cannot be empty.");
+            var result = await _searchService.SearchAsync(query);
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            if (query.Length < 3)
-                return BadRequest("Search query must be at least 3 characters long.");
-
-            var (playlists, songs) = await _searchService.SearchAsync(query);
+            var (playlists, songs) = result.Data;
 
             return Ok(new
             {

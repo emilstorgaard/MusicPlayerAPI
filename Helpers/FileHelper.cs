@@ -6,7 +6,8 @@
 
         public static bool IsValidFile(IFormFile file, string[] allowedExtensions)
         {
-            return allowedExtensions.Contains(Path.GetExtension(file.FileName).ToLower());
+            return file.Length == 0 ? false : allowedExtensions.Contains(Path.GetExtension(file.FileName).ToLower());
+
         }
 
         public static string SaveFile(IFormFile file, string folderPath)

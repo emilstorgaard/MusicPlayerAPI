@@ -20,95 +20,96 @@ namespace MusicPlayerAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var playlists = await _playlistService.GetAll();
-            return Ok(playlists);
+            var result = await _playlistService.GetAll();
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
+
+            return Ok(result.Data);
         }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var playlist = await _playlistService.GetById(id);
-            if (playlist == null) return NotFound("Playlist not found");
+            var result = await _playlistService.GetById(id);
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            return Ok(playlist);
+            return Ok(result.Data);
         }
 
         [HttpGet("{id:int}/cover")]
         public async Task<IActionResult> GetCoverImage(int id)
         {
-            var playlist = await _playlistService.GetById(id);
+            var result = await _playlistService.GetById(id);
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
+
+            var playlist = result.Data;
             var coverImagePath = playlist?.CoverImagePath;
             if (coverImagePath == null || !System.IO.File.Exists(coverImagePath))
                 return NotFound("Cover image not found.");
 
-            return PhysicalFile(playlist.CoverImagePath, "image/jpeg");
+            return PhysicalFile(coverImagePath, "image/jpeg");
         }
 
         [HttpPost]
         public async Task<IActionResult> AddPlaylist([FromForm] PlaylistDto playlistDto, [FromForm] IFormFile? coverImageFile)
         {
             var result = await _playlistService.Add(playlistDto, coverImageFile);
-            if (!result) return BadRequest("Failed to add playlist");
 
-            return Ok();
+            return StatusCode(result.Status, result.Message);
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> UpdatePlaylist(int id, [FromForm] PlaylistDto playlistDto, [FromForm] IFormFile? coverImageFile)
         {
             var result = await _playlistService.Update(id, playlistDto, coverImageFile);
-            if (!result) return BadRequest("Failed to update playlist");
 
-            return Ok();
+            return StatusCode(result.Status, result.Message);
         }
 
         [HttpPut("{id:int}/cover/remove")]
         public async Task<IActionResult> RemoveCoverImage(int id)
         {
             var result = await _playlistService.UpdateCoverImage(id);
-            if (!result) return BadRequest("Failed to remove cover image");
 
-            return Ok(new { message = "Cover image removed, default image applied." });
+            return StatusCode(result.Status, result.Message);
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeletePlaylist(int id)
         {
             var result = await _playlistService.Delete(id);
-            if (!result) return NotFound("Playlist not found");
 
-            return Ok();
+            return StatusCode(result.Status, result.Message);
         }
 
         [HttpPost("{playlistId}/songs/{songId}")]
         public async Task<IActionResult> AddSongToPlaylist(int playlistId, int songId)
         {
-            var playlist = await _playlistService.GetById(playlistId);
-            if (playlist == null) return NotFound("Playlist not found");
+            var playlistResult = await _playlistService.GetById(playlistId);
+            if (playlistResult.Status != 200) return StatusCode(playlistResult.Status, playlistResult.Message);
 
-            var song = await _songService.GetById(songId);
-            if (song == null) return NotFound("Song not found");
+            var songResult = await _songService.GetById(songId);
+            if (songResult.Status != 200) return StatusCode(songResult.Status, songResult.Message);
 
             var result = await _playlistService.AddToPlaylist(playlistId, songId);
-            if (!result) return BadRequest("Failed to add song to playlist");
 
-            return Ok();
+            return StatusCode(result.Status, result.Message);
         }
 
         [HttpGet("{id}/songs")]
         public async Task<IActionResult> GetAllSongsByPlaylistId(int id)
         {
-            var songs = await _playlistService.GetAllSongsByPlaylistId(id);
-            return Ok(songs);
+            var result = await _playlistService.GetAllSongsByPlaylistId(id);
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
+
+            return Ok(result.Data);
         }
 
         [HttpDelete("{playlistId}/songs/{songId}")]
         public async Task<IActionResult> RemoveSongFromPlaylist(int playlistId, int songId)
         {
             var result = await _playlistService.RemoveFromPlaylist(playlistId, songId);
-            if (!result) return NotFound("Song not found in the playlist.");
 
-            return Ok();
+            return StatusCode(result.Status, result.Message);
         }
     }
 }

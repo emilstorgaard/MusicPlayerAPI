@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MusicPlayerAPI.Data;
 using MusicPlayerAPI.Helpers;
-using MusicPlayerAPI.Models;
 using MusicPlayerAPI.Models.Dtos;
 using MusicPlayerAPI.Models.Entities;
 
@@ -55,13 +54,13 @@ namespace MusicPlayerAPI.Services
             }
         }
 
-        public async Task<StatusResult<Song>> Upload(SongDto songDto, IFormFile audioFile, IFormFile? coverImageFile)
+        public async Task<StatusResult> Upload(SongDto songDto, IFormFile audioFile, IFormFile? coverImageFile)
         {
             if (songDto == null || audioFile == null || !FileHelper.IsValidFile(audioFile, AllowedAudioExtensions))
-                return StatusResult<Song>.Failure(400, "Invalid song data or audio file.");
+                return StatusResult.Failure(400, "Invalid song data or audio file.");
 
             var existingSong = await _dbContext.Songs.AnyAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
-            if (existingSong) return StatusResult<Song>.Failure(400, "Song already exists.");
+            if (existingSong) return StatusResult.Failure(400, "Song already exists.");
 
             var audioFileName = FileHelper.SaveFile(audioFile, _uploadAudioFolderPath);
 
@@ -80,33 +79,33 @@ namespace MusicPlayerAPI.Services
             await _dbContext.Songs.AddAsync(song);
             await _dbContext.SaveChangesAsync();
 
-            return StatusResult<Song>.Success(song, 200, "Song uploaded successfully.");
+            return StatusResult.Success(201);
         }
 
-        public async Task<StatusResult<Song>> UpdateCoverImage(int songId)
+        public async Task<StatusResult> UpdateCoverImage(int songId)
         {
             var song = await _dbContext.Songs.FindAsync(songId);
-            if (song == null) return StatusResult<Song>.Failure(404, "Song not found.");
+            if (song == null) return StatusResult.Failure(404, "Song not found.");
 
             FileHelper.DeleteFile(song.CoverImagePath);
             song.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
 
             await _dbContext.SaveChangesAsync();
 
-            return StatusResult<Song>.Success(song, 200, "Cover image successfully removed and set to default");
+            return StatusResult.Success(200);
         }
 
-        public async Task<StatusResult<Song>> Update(int id, SongDto songDto, IFormFile audioFile, IFormFile coverImageFile)
+        public async Task<StatusResult> Update(int id, SongDto songDto, IFormFile? audioFile, IFormFile? coverImageFile)
         {
-            var resp = await GetById(id);
-            if (resp.Status != 200) return StatusResult<Song>.Failure(resp.Status, resp.Message);
+            var result = await GetById(id);
+            if (result.Status != 200) return StatusResult.Failure(result.Status, result.Message ?? "An error occurred.");
 
-            var song = resp.Data;
+            var song = result.Data;
 
-            if (song == null) return StatusResult<Song>.Failure(404, "Song not found.");
+            if (song == null) return StatusResult.Failure(404, "Song not found.");
 
             var existingSong = await _dbContext.Songs.AnyAsync(s => s.Id != id && s.Title == songDto.Title && s.Artist == songDto.Artist);
-            if (existingSong) return StatusResult<Song>.Failure(409, "A song with the same title and artist already exists.");
+            if (existingSong) return StatusResult.Failure(409, "A song with the same title and artist already exists.");
 
             if (coverImageFile != null && FileHelper.IsValidFile(coverImageFile, AllowedImageExtensions))
             {
@@ -125,17 +124,17 @@ namespace MusicPlayerAPI.Services
 
             await _dbContext.SaveChangesAsync();
 
-            return StatusResult<Song>.Success(song, 200, "Song updated successfully.");
+            return StatusResult.Success(200);
         }
 
-        public async Task<StatusResult<Song>> Delete(int id)
+        public async Task<StatusResult> Delete(int id)
         {
-            var resp = await GetById(id);
+            var result = await GetById(id);
 
-            if (resp.Status != 200) return StatusResult<Song>.Failure(resp.Status, resp.Message);
-            var song = resp.Data;
+            if (result.Status != 200) return StatusResult<Song>.Failure(result.Status, result.Message ?? "An error occurred.");
+            var song = result.Data;
 
-            if (song == null) return StatusResult<Song>.Failure(404, "Song not found");
+            if (song == null) return StatusResult.Failure(404, "Song not found");
 
             try
             {
@@ -146,10 +145,10 @@ namespace MusicPlayerAPI.Services
             }
             catch (Exception ex)
             {
-                return StatusResult<Song>.Failure(500, $"Error occurred while deleting: {ex.Message}");
+                return StatusResult.Failure(500, $"Error occurred while deleting: {ex.Message}");
             }
 
-            return StatusResult<Song>.Success(song, 200, "Song deleted successfully");
+            return StatusResult.Success(200);
         }
     }
 }

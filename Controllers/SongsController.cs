@@ -18,35 +18,34 @@ namespace MusicPlayerAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var response = await _songService.GetAll();
+            var result = await _songService.GetAll();
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            if (response.Status != 200) return StatusCode(response.Status, response.Message);
-
-            return Ok(response.Data);
+            return Ok(result.Data);
         }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var response = await _songService.GetById(id);
+            var result = await _songService.GetById(id);
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            if (response.Status != 200) return StatusCode(response.Status, response.Message);
-
-            return Ok(response.Data);
+            return Ok(result.Data);
         }
 
         [HttpGet("{id:int}/stream")]
         public async Task<IActionResult> StreamSong(int id)
         {
-            var response = await _songService.GetById(id);
-            if (response.Status != 200) return StatusCode(response.Status, response.Message);
+            var result = await _songService.GetById(id);
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            var song = response.Data;
+            if (result.Data == null) return NotFound("Song not found.");
 
-            var streamResponse = _songService.Stream(song.AudioFilePath);
-            if (streamResponse.Status != 200) return StatusCode(streamResponse.Status, streamResponse.Message);
+            var song = result.Data;
+            var streamResult = _songService.Stream(song.AudioFilePath);
+            if (streamResult.Status != 200) return StatusCode(streamResult.Status, streamResult.Message);
 
-            var fileStream = streamResponse.Data;
+            var fileStream = streamResult.Data;
             if (fileStream == null) return NotFound("Audio file not found");
 
             return File(fileStream, "audio/mpeg", enableRangeProcessing: true);
@@ -55,10 +54,10 @@ namespace MusicPlayerAPI.Controllers
         [HttpGet("{id:int}/cover")]
         public async Task<IActionResult> GetCoverImage(int id)
         {
-            var response = await _songService.GetById(id);
-            if (response.Status != 200) return StatusCode(response.Status, response.Message);
+            var result = await _songService.GetById(id);
+            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            var song = response.Data;
+            var song = result.Data;
             var coverImagePath = song?.CoverImagePath;
 
             if (coverImagePath == null || !System.IO.File.Exists(coverImagePath))
@@ -70,39 +69,33 @@ namespace MusicPlayerAPI.Controllers
         [HttpPost]
         public async Task<IActionResult> UploadSong([FromForm] SongDto songDto, [FromForm] IFormFile audioFile, [FromForm] IFormFile? coverImageFile)
         {
-            if (audioFile == null || audioFile.Length == 0) return BadRequest("No audio file uploaded.");
-
             var result = await _songService.Upload(songDto, audioFile, coverImageFile);
-            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            return Ok(result.Data);
+            return StatusCode(result.Status, result.Message);
         }
 
         [HttpPut("{id:int}/cover/remove")]
         public async Task<IActionResult> RemoveCoverImage(int id)
         {
-            var updateResult = await _songService.UpdateCoverImage(id);
-            if (updateResult.Status != 200) return StatusCode(updateResult.Status, updateResult.Message);
+            var result = await _songService.UpdateCoverImage(id);
 
-            return Ok();
+            return StatusCode(result.Status, result.Message);
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> UpdateSong(int id, [FromForm] SongDto songDto, [FromForm] IFormFile? audioFile, [FromForm] IFormFile? coverImageFile)
         {
             var result = await _songService.Update(id, songDto, audioFile, coverImageFile);
-            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            return Ok(result.Data);
+            return StatusCode(result.Status, result.Message);
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteSong(int id)
         {
             var result = await _songService.Delete(id);
-            if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
-            return Ok(result.Data);
+            return StatusCode(result.Status, result.Message);
         }
     }
 }

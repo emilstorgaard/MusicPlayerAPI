@@ -5,10 +5,10 @@ namespace MusicPlayerAPI.Models.Entities
     public class Song
     {
         public int Id { get; set; }
-        public string Title { get; set; }
-        public string Artist { get; set; }
-        public string AudioFilePath { get; set; }
-        public string CoverImagePath { get; set; }
+        public required string Title { get; set; }
+        public required string Artist { get; set; }
+        public required string AudioFilePath { get; set; }
+        public required string CoverImagePath { get; set; }
 
         // Add a collection of PlaylistSong to represent the many-to-many relationship
         [JsonIgnore]

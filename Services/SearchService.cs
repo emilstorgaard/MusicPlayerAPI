@@ -13,9 +13,13 @@ namespace MusicPlayerAPI.Services
             _dbContext = dbContext;
         }
 
-        public async Task<(IEnumerable<Playlist>, IEnumerable<Song>)> SearchAsync(string query)
+        public async Task<StatusResult<(List<Playlist>, List<Song>)>> SearchAsync(string query)
         {
-            if (string.IsNullOrWhiteSpace(query)) return (Enumerable.Empty<Playlist>(), Enumerable.Empty<Song>());
+            if (string.IsNullOrWhiteSpace(query))
+                return StatusResult<(List<Playlist>, List<Song>)>.Failure(400, "Search query cannot be empty.");
+
+            if (query.Length < 3)
+                return StatusResult<(List<Playlist>, List<Song>)>.Failure(400, "Search query must be at least 3 characters long.");
 
             query = query.ToLower();
 
@@ -27,7 +31,7 @@ namespace MusicPlayerAPI.Services
                 .Where(s => s.Title.ToLower().Contains(query) || s.Artist.ToLower().Contains(query))
                 .ToListAsync();
 
-            return (playlists, songs);
+            return StatusResult<(List<Playlist>, List<Song>)>.Success((playlists, songs), 200, "Search results found.");
         }
     }
 }
