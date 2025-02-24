@@ -15,14 +15,14 @@ public class UserService
         _dbContext = dbContext;
     }
 
-    public async Task<StatusResult<List<UserResDto>>> GetAll()
+    public async Task<StatusResult<List<UserRespDto>>> GetAll()
     {
         var users = await _dbContext.Users.ToListAsync();
 
-        if (users == null || !users.Any()) return StatusResult<List<UserResDto>>.Failure(404, "No users found.");
+        if (users == null || !users.Any()) return StatusResult<List<UserRespDto>>.Failure(404, "No users found.");
 
         var userDtos = users.Select(u => UserMapper.MapToDto(u)).ToList();
-        return StatusResult<List<UserResDto>>.Success(userDtos, 200);
+        return StatusResult<List<UserRespDto>>.Success(userDtos, 200);
     }
 
     public async Task<User?> GetUserByEmailAsync(string email)
@@ -30,7 +30,7 @@ public class UserService
         return await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
     }
 
-    public async Task<StatusResult<UserResDto>> AddUser(UserReqDto userReqDto)
+    public async Task<StatusResult<UserRespDto>> AddUser(UserReqDto userReqDto)
     {
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(userReqDto.Password);
 
@@ -44,6 +44,6 @@ public class UserService
 
         await _dbContext.Users.AddAsync(user);
         await _dbContext.SaveChangesAsync();
-        return StatusResult<UserResDto>.Success(UserMapper.MapToDto(user), 201);
+        return StatusResult<UserRespDto>.Success(UserMapper.MapToDto(user), 201);
     }
 }

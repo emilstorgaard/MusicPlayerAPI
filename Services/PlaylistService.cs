@@ -20,7 +20,7 @@ public class PlaylistService
         Directory.CreateDirectory(_uploadFolderPath);
     }
 
-    public async Task<StatusResult<List<PlaylistResDto>>> GetAll()
+    public async Task<StatusResult<List<PlaylistRespDto>>> GetAll()
     {
         var playlists = await _dbContext.Playlists
             .Select(p => new
@@ -31,21 +31,21 @@ public class PlaylistService
             .ToListAsync();
 
         if (playlists == null || !playlists.Any())
-            return StatusResult<List<PlaylistResDto>>.Failure(404, "No playlists found.");
+            return StatusResult<List<PlaylistRespDto>>.Failure(404, "No playlists found.");
 
         var playlistDtos = playlists.Select(p => PlaylistMapper.MapToDto(p.Playlist, p.IsLiked)).ToList();
-        return StatusResult<List<PlaylistResDto>>.Success(playlistDtos, 200);
+        return StatusResult<List<PlaylistRespDto>>.Success(playlistDtos, 200);
     }
 
 
-    public async Task<StatusResult<PlaylistResDto>> GetById(int id)
+    public async Task<StatusResult<PlaylistRespDto>> GetById(int id)
     {
         var playlist = await _dbContext.Playlists.FindAsync(id);
-        if (playlist == null) return StatusResult<PlaylistResDto>.Failure(404, "Playlist not found.");
+        if (playlist == null) return StatusResult<PlaylistRespDto>.Failure(404, "Playlist not found.");
 
         bool isLiked = await _dbContext.LikedPlaylists.AnyAsync(lp => lp.PlaylistId == id);
         var playlistDto = PlaylistMapper.MapToDto(playlist, isLiked);
-        return StatusResult<PlaylistResDto>.Success(playlistDto, 200);
+        return StatusResult<PlaylistRespDto>.Success(playlistDto, 200);
     }
 
     public async Task<StatusResult> Add(PlaylistReqDto playlistDto, IFormFile? coverImageFile, int userId)
@@ -202,7 +202,7 @@ public class PlaylistService
         return StatusResult.Success(200);
     }
 
-    public async Task<StatusResult<List<SongResDto>>> GetAllSongsByPlaylistId(int playlistId)
+    public async Task<StatusResult<List<SongRespDto>>> GetAllSongsByPlaylistId(int playlistId)
     {
         var songs = await _dbContext.PlaylistSongs
             .Where(ps => ps.PlaylistId == playlistId)
@@ -216,9 +216,9 @@ public class PlaylistService
         var songDtos = songs.Select(s => SongMapper.MapToDto(s.Song, s.IsLiked)).ToList();
 
         if (!songDtos.Any())
-            return StatusResult<List<SongResDto>>.Failure(404, "No songs found in the playlist.");
+            return StatusResult<List<SongRespDto>>.Failure(404, "No songs found in the playlist.");
 
-        return StatusResult<List<SongResDto>>.Success(songDtos, 200);
+        return StatusResult<List<SongRespDto>>.Success(songDtos, 200);
     }
 
     public async Task<StatusResult> RemoveFromPlaylist(int playlistId, int songId, int userId)

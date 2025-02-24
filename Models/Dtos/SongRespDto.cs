@@ -1,6 +1,6 @@
 ﻿namespace MusicPlayerAPI.Models.Dtos;
 
-public class SongResDto
+public class SongRespDto
 {
     public int Id { get; set; }
     public required string Title { get; set; }

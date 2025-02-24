@@ -24,7 +24,7 @@ public class SongService
         Directory.CreateDirectory(_uploadImageFolderPath);
     }
 
-    public async Task<StatusResult<List<SongResDto>>> GetAll()
+    public async Task<StatusResult<List<SongRespDto>>> GetAll()
     {
         var songs = await _dbContext.Songs
             .Select(s => new
@@ -34,20 +34,20 @@ public class SongService
             })
             .ToListAsync();
 
-        if (songs == null || !songs.Any()) return StatusResult<List<SongResDto>>.Failure(404, "No songs found.");
+        if (songs == null || !songs.Any()) return StatusResult<List<SongRespDto>>.Failure(404, "No songs found.");
 
         var songDtos = songs.Select(s => SongMapper.MapToDto(s.Song, s.IsLiked)).ToList();
-        return StatusResult<List<SongResDto>>.Success(songDtos, 200);
+        return StatusResult<List<SongRespDto>>.Success(songDtos, 200);
     }
 
-    public async Task<StatusResult<SongResDto>> GetById(int id)
+    public async Task<StatusResult<SongRespDto>> GetById(int id)
     {
         var song = await _dbContext.Songs.FindAsync(id);
-        if (song == null) return StatusResult<SongResDto>.Failure(404, "Song not found.");
+        if (song == null) return StatusResult<SongRespDto>.Failure(404, "Song not found.");
 
         bool isLiked = await _dbContext.LikedSongs.AnyAsync(ls => ls.SongId == id);
         var songDto = SongMapper.MapToDto(song, isLiked);
-        return StatusResult<SongResDto>.Success(songDto, 200);
+        return StatusResult<SongRespDto>.Success(songDto, 200);
     }
 
     public StatusResult<FileStream> Stream(string songPath)
@@ -76,8 +76,7 @@ public class SongService
         var existingSong = await _dbContext.Songs.AnyAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
         if (existingSong) return StatusResult.Failure(400, "Song already exists.");
 
-        var audioFileName = FileHelper.SaveFile(audioFile, _uploadAudioFolderPath);
-
+        var audioFilePath = FileHelper.SaveFile(audioFile, _uploadAudioFolderPath);
         var coverImagePath = coverImageFile != null && FileHelper.IsValidFile(coverImageFile, AllowedImageExtensions)
             ? FileHelper.SaveFile(coverImageFile, _uploadImageFolderPath)
             : FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
@@ -86,7 +85,7 @@ public class SongService
         {
             Title = songDto.Title,
             Artist = songDto.Artist,
-            AudioFilePath = audioFileName,
+            AudioFilePath = audioFilePath,
             CoverImagePath = coverImagePath,
             UserId = userId,
             CreatedAtUtc = DateTime.UtcNow,

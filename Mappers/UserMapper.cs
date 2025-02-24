@@ -5,9 +5,9 @@ namespace MusicPlayerAPI.Mappers;
 
 public static class UserMapper
 {
-    public static UserResDto MapToDto(User user)
+    public static UserRespDto MapToDto(User user)
     {
-        return new UserResDto
+        return new UserRespDto
         {
             Id = user.Id,
             Email = user.Email,

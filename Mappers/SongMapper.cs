@@ -5,9 +5,9 @@ namespace MusicPlayerAPI.Mappers;
 
 public static class SongMapper
 {
-    public static SongResDto MapToDto(Song song, bool isLiked)
+    public static SongRespDto MapToDto(Song song, bool isLiked)
     {
-        return new SongResDto
+        return new SongRespDto
         {
             Id = song.Id,
             Title = song.Title,

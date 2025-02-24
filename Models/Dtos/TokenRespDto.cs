@@ -1,6 +1,6 @@
 ﻿namespace MusicPlayerAPI.Models.Dtos;
 
-public class TokenResDto
+public class TokenRespDto
 {
     public required string Token { get; set; }
 }
