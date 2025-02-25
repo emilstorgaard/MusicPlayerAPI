@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MusicPlayerAPI.Models.Dtos;
-using MusicPlayerAPI.Services;
+using MusicPlayerAPI.Models.Dtos.Request;
+using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
 
@@ -9,9 +9,9 @@ namespace MusicPlayerAPI.Controllers;
 [ApiController]
 public class UsersController : ControllerBase
 {
-    private readonly UserService _userService;
+    private readonly IUserService _userService;
 
-    public UsersController(UserService userService)
+    public UsersController(IUserService userService)
     {
         _userService = userService;
     }

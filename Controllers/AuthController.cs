@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MusicPlayerAPI.Models.Dtos;
-using MusicPlayerAPI.Services;
+using MusicPlayerAPI.Models.Dtos.Request;
+using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
 
@@ -8,9 +8,9 @@ namespace MusicPlayerAPI.Controllers;
 [ApiController]
 public class AuthController : ControllerBase
 {
-    private readonly AuthService _authService;
+    private readonly IAuthService _authService;
 
-    public AuthController(AuthService authService)
+    public AuthController(IAuthService authService)
     {
         _authService = authService;
     }

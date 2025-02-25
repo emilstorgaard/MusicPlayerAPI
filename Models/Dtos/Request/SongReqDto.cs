@@ -1,4 +1,4 @@
-﻿namespace MusicPlayerAPI.Models.Dtos;
+﻿namespace MusicPlayerAPI.Models.Dtos.Request;
 
 public class SongReqDto
 {

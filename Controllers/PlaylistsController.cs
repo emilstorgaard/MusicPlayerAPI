@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MusicPlayerAPI.Models.Dtos;
-using MusicPlayerAPI.Services;
+using MusicPlayerAPI.Helpers;
+using MusicPlayerAPI.Models.Dtos.Request;
+using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
 
@@ -9,10 +10,10 @@ namespace MusicPlayerAPI.Controllers;
 [ApiController]
 public class PlaylistsController : ControllerBase
 {
-    private readonly PlaylistService _playlistService;
-    private readonly SongService _songService;
+    private readonly IPlaylistService _playlistService;
+    private readonly ISongService _songService;
 
-    public PlaylistsController(PlaylistService playlistService, SongService songService)
+    public PlaylistsController(IPlaylistService playlistService, ISongService songService)
     {
         _playlistService = playlistService;
         _songService = songService;
@@ -43,9 +44,12 @@ public class PlaylistsController : ControllerBase
         if (result.Status != 200) return StatusCode(result.Status, result.Message);
 
         var playlist = result.Data;
-        var coverImagePath = playlist?.CoverImagePath;
-        if (coverImagePath == null || !System.IO.File.Exists(coverImagePath))
-            return NotFound("Cover image not found.");
+
+        if (string.IsNullOrEmpty(playlist?.CoverImagePath)) return NotFound("Cover image path is missing.");
+
+        var coverImagePath = FileHelper.GetFullPath(playlist.CoverImagePath);
+
+        if (!System.IO.File.Exists(coverImagePath)) return NotFound("Cover image not found.");
 
         return PhysicalFile(coverImagePath, "image/jpeg");
     }
@@ -54,9 +58,8 @@ public class PlaylistsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> AddPlaylist([FromForm] PlaylistReqDto playlistDto, [FromForm] IFormFile? coverImageFile)
     {
-        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "Uid")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            return Unauthorized("Invalid or missing user ID in token.");
+        var userIdClaim = User.FindFirst("Uid")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
 
         var result = await _playlistService.Add(playlistDto, coverImageFile, userId);
         return StatusCode(result.Status, result.Message);
@@ -66,9 +69,8 @@ public class PlaylistsController : ControllerBase
     [HttpPost("{id:int}/like")]
     public async Task<IActionResult> LikePlaylist(int id)
     {
-        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "Uid")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            return Unauthorized("Invalid or missing user ID in token.");
+        var userIdClaim = User.FindFirst("Uid")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
 
         var result = await _playlistService.Like(id, userId);
         return StatusCode(result.Status, result.Message);
@@ -78,9 +80,8 @@ public class PlaylistsController : ControllerBase
     [HttpPost("{id:int}/dislike")]
     public async Task<IActionResult> DislikePlaylist(int id)
     {
-        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "Uid")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            return Unauthorized("Invalid or missing user ID in token.");
+        var userIdClaim = User.FindFirst("Uid")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
 
         var result = await _playlistService.Dislike(id, userId);
         return StatusCode(result.Status, result.Message);
@@ -90,9 +91,8 @@ public class PlaylistsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdatePlaylist(int id, [FromForm] PlaylistReqDto playlistDto, [FromForm] IFormFile? coverImageFile)
     {
-        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "Uid")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            return Unauthorized("Invalid or missing user ID in token.");
+        var userIdClaim = User.FindFirst("Uid")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
 
         var result = await _playlistService.Update(id, playlistDto, coverImageFile, userId);
         return StatusCode(result.Status, result.Message);
@@ -102,9 +102,8 @@ public class PlaylistsController : ControllerBase
     [HttpPut("{id:int}/cover/remove")]
     public async Task<IActionResult> RemoveCoverImage(int id)
     {
-        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "Uid")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            return Unauthorized("Invalid or missing user ID in token.");
+        var userIdClaim = User.FindFirst("Uid")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
 
         var result = await _playlistService.UpdateCoverImage(id, userId);
         return StatusCode(result.Status, result.Message);
@@ -114,9 +113,8 @@ public class PlaylistsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeletePlaylist(int id)
     {
-        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "Uid")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            return Unauthorized("Invalid or missing user ID in token.");
+        var userIdClaim = User.FindFirst("Uid")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
 
         var result = await _playlistService.Delete(id, userId);
         return StatusCode(result.Status, result.Message);
@@ -126,9 +124,8 @@ public class PlaylistsController : ControllerBase
     [HttpPost("{playlistId}/songs/{songId}")]
     public async Task<IActionResult> AddSongToPlaylist(int playlistId, int songId)
     {
-        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "Uid")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            return Unauthorized("Invalid or missing user ID in token.");
+        var userIdClaim = User.FindFirst("Uid")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
 
         var playlistResult = await _playlistService.GetById(playlistId);
         if (playlistResult.Status != 200) return StatusCode(playlistResult.Status, playlistResult.Message);
@@ -153,9 +150,8 @@ public class PlaylistsController : ControllerBase
     [HttpDelete("{playlistId}/songs/{songId}")]
     public async Task<IActionResult> RemoveSongFromPlaylist(int playlistId, int songId)
     {
-        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == "Uid")?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-            return Unauthorized("Invalid or missing user ID in token.");
+        var userIdClaim = User.FindFirst("Uid")?.Value;
+        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
 
         var result = await _playlistService.RemoveFromPlaylist(playlistId, songId, userId);
         return StatusCode(result.Status, result.Message);

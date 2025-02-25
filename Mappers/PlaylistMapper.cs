@@ -1,4 +1,4 @@
-﻿using MusicPlayerAPI.Models.Dtos;
+﻿using MusicPlayerAPI.Models.Dtos.Response;
 using MusicPlayerAPI.Models.Entities;
 
 namespace MusicPlayerAPI.Mappers;

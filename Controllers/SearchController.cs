@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MusicPlayerAPI.Services;
+using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
 
@@ -7,9 +7,9 @@ namespace MusicPlayerAPI.Controllers;
 [ApiController]
 public class SearchController : ControllerBase
 {
-    private readonly SearchService _searchService;
+    private readonly ISearchService _searchService;
 
-    public SearchController(SearchService searchService)
+    public SearchController(ISearchService searchService)
     {
         _searchService = searchService;
     }

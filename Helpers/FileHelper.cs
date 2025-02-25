@@ -13,21 +13,30 @@ public static class FileHelper
     {
         var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName).ToLower();
         var filePath = Path.Combine(folderPath, fileName);
-        using var stream = new FileStream(filePath, FileMode.Create);
+        var fullPath = GetFullPath(filePath);
+        using var stream = new FileStream(fullPath, FileMode.Create);
         file.CopyTo(stream);
         return filePath;
     }
 
     public static void DeleteFile(string? filePath)
     {
-        if (!string.IsNullOrEmpty(filePath) && !filePath.EndsWith(DefaultCoverImage) && File.Exists(filePath))
+        if (string.IsNullOrEmpty(filePath)) return;
+
+        var fullFilePath = GetFullPath(filePath);
+        if (!fullFilePath.EndsWith(DefaultCoverImage) && File.Exists(fullFilePath))
         {
-            File.Delete(filePath);
+            File.Delete(fullFilePath);
         }
     }
 
     public static string GetDefaultCoverImagePath(string folderPath)
     {
         return Path.Combine(folderPath, DefaultCoverImage);
+    }
+
+    public static string GetFullPath(string relativePath)
+    {
+        return Path.Combine(Directory.GetCurrentDirectory(), relativePath);
     }
 }

@@ -2,24 +2,28 @@
 using MusicPlayerAPI.Data;
 using MusicPlayerAPI.Helpers;
 using MusicPlayerAPI.Mappers;
-using MusicPlayerAPI.Models.Dtos;
+using MusicPlayerAPI.Models.Dtos.Request;
+using MusicPlayerAPI.Models.Dtos.Response;
 using MusicPlayerAPI.Models.Entities;
+using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Services;
 
-public class SongService
+public class SongService : ISongService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly string _uploadAudioFolderPath;
     private readonly string _uploadImageFolderPath;
-    private static readonly string[] AllowedAudioExtensions = { ".mp3" };
-    private static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png" };
+    private readonly string[] _allowedAudioExtensions;
+    private readonly string[] _allowedImageExtensions;
 
-    public SongService(ApplicationDbContext dbContext)
+    public SongService(ApplicationDbContext dbContext, IConfiguration configuration)
     {
         _dbContext = dbContext;
-        _uploadAudioFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Media", "Songs");
-        _uploadImageFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Media", "Images");
+        _uploadAudioFolderPath = configuration["FilePaths:AudioFolder"] ?? throw new ArgumentNullException(nameof(configuration), "Audio folder path is not configured.");
+        _uploadImageFolderPath = configuration["FilePaths:ImageFolder"] ?? throw new ArgumentNullException(nameof(configuration), "Image folder path is not configured.");
+        _allowedAudioExtensions = configuration.GetSection("FileTypes:AudioExtensions").Get<string[]>() ?? throw new ArgumentNullException(nameof(configuration), "AudioExtensions is missing.");
+        _allowedImageExtensions = configuration.GetSection("FileTypes:ImageExtensions").Get<string[]>() ?? throw new ArgumentNullException(nameof(configuration), "ImageExtensions is missing.");
         Directory.CreateDirectory(_uploadAudioFolderPath);
         Directory.CreateDirectory(_uploadImageFolderPath);
     }
@@ -27,6 +31,7 @@ public class SongService
     public async Task<StatusResult<List<SongRespDto>>> GetAll()
     {
         var songs = await _dbContext.Songs
+            .AsNoTracking()
             .Select(s => new
             {
                 Song = s,
@@ -34,7 +39,7 @@ public class SongService
             })
             .ToListAsync();
 
-        if (songs == null || !songs.Any()) return StatusResult<List<SongRespDto>>.Failure(404, "No songs found.");
+        if (!songs.Any()) return StatusResult<List<SongRespDto>>.Failure(404, "No songs found.");
 
         var songDtos = songs.Select(s => SongMapper.MapToDto(s.Song, s.IsLiked)).ToList();
         return StatusResult<List<SongRespDto>>.Success(songDtos, 200);
@@ -42,7 +47,7 @@ public class SongService
 
     public async Task<StatusResult<SongRespDto>> GetById(int id)
     {
-        var song = await _dbContext.Songs.FindAsync(id);
+        var song = await _dbContext.Songs.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
         if (song == null) return StatusResult<SongRespDto>.Failure(404, "Song not found.");
 
         bool isLiked = await _dbContext.LikedSongs.AnyAsync(ls => ls.SongId == id);
@@ -52,10 +57,10 @@ public class SongService
 
     public StatusResult<FileStream> Stream(string songPath)
     {
+        if (!File.Exists(songPath)) return StatusResult<FileStream>.Failure(404, "Song file not found.");
+
         try
         {
-            if (!File.Exists(songPath)) return StatusResult<FileStream>.Failure(404, "Song file not found.");
-
             var fileStream = File.OpenRead(songPath);
             return StatusResult<FileStream>.Success(fileStream, 200);
         }
@@ -67,7 +72,7 @@ public class SongService
 
     public async Task<StatusResult> Upload(SongReqDto songDto, IFormFile audioFile, IFormFile? coverImageFile, int userId)
     {
-        if (songDto == null || audioFile == null || !FileHelper.IsValidFile(audioFile, AllowedAudioExtensions))
+        if (songDto == null || audioFile == null || !FileHelper.IsValidFile(audioFile, _allowedAudioExtensions))
             return StatusResult.Failure(400, "Invalid song data or audio file.");
 
         var user = await _dbContext.Users.FindAsync(userId);
@@ -77,7 +82,7 @@ public class SongService
         if (existingSong) return StatusResult.Failure(400, "Song already exists.");
 
         var audioFilePath = FileHelper.SaveFile(audioFile, _uploadAudioFolderPath);
-        var coverImagePath = coverImageFile != null && FileHelper.IsValidFile(coverImageFile, AllowedImageExtensions)
+        var coverImagePath = coverImageFile != null && FileHelper.IsValidFile(coverImageFile, _allowedImageExtensions)
             ? FileHelper.SaveFile(coverImageFile, _uploadImageFolderPath)
             : FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
 
@@ -88,8 +93,8 @@ public class SongService
             AudioFilePath = audioFilePath,
             CoverImagePath = coverImagePath,
             UserId = userId,
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow),
+            UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow),
             User = user
         };
 
@@ -100,10 +105,7 @@ public class SongService
 
     public async Task<StatusResult> Like(int songId, int userId)
     {
-        var song = await _dbContext.Songs
-            .Include(s => s.LikedSongs)
-            .FirstOrDefaultAsync(s => s.Id == songId);
-
+        var song = await _dbContext.Songs.Include(s => s.LikedSongs).FirstOrDefaultAsync(s => s.Id == songId);
         if (song == null) return StatusResult.Failure(404, "Song not found.");
 
         var user = await _dbContext.Users.FindAsync(userId);
@@ -120,7 +122,7 @@ public class SongService
             User = user
         };
         song.LikedSongs.Add(likedSong);
-        song.UpdatedAtUtc = DateTime.UtcNow;
+        song.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -134,9 +136,9 @@ public class SongService
         var likedSong = await _dbContext.LikedSongs.FirstOrDefaultAsync(ls => ls.SongId == songId && ls.UserId == userId);
         if (likedSong == null) return StatusResult.Failure(404, "Song not found in your liked songs.");
 
-        song.UpdatedAtUtc = DateTime.UtcNow;
-
         _dbContext.LikedSongs.Remove(likedSong);
+        song.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
     }
@@ -148,7 +150,7 @@ public class SongService
 
         FileHelper.DeleteFile(song.CoverImagePath);
         song.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
-        song.UpdatedAtUtc = DateTime.UtcNow;
+        song.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -162,13 +164,13 @@ public class SongService
         var existingSong = await _dbContext.Songs.AnyAsync(s => s.Id != id && s.Title == songDto.Title && s.Artist == songDto.Artist);
         if (existingSong) return StatusResult.Failure(409, "A song with the same title and artist already exists.");
 
-        if (coverImageFile != null && FileHelper.IsValidFile(coverImageFile, AllowedImageExtensions))
+        if (coverImageFile != null && FileHelper.IsValidFile(coverImageFile, _allowedImageExtensions))
         {
             FileHelper.DeleteFile(song.CoverImagePath);
             song.CoverImagePath = FileHelper.SaveFile(coverImageFile, _uploadImageFolderPath);
         }
 
-        if (audioFile != null && FileHelper.IsValidFile(audioFile, AllowedAudioExtensions))
+        if (audioFile != null && FileHelper.IsValidFile(audioFile, _allowedAudioExtensions))
         {
             FileHelper.DeleteFile(song.AudioFilePath);
             song.AudioFilePath = FileHelper.SaveFile(audioFile, _uploadAudioFolderPath);
@@ -176,7 +178,7 @@ public class SongService
 
         song.Title = songDto.Title;
         song.Artist = songDto.Artist;
-        song.UpdatedAtUtc = DateTime.UtcNow;
+        song.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
