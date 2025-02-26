@@ -41,8 +41,8 @@ public class UserService : IUserService
         {
             Email = userReqDto.Email,
             PasswordHash = passwordHash,
-            CreatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow),
-            UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow)
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
         };
 
         await _dbContext.Users.AddAsync(user);

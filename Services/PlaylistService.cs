@@ -70,8 +70,8 @@ public class PlaylistService : IPlaylistService
             UserId = userId,
             Name = playlistDto.Name,
             CoverImagePath = filePath,
-            CreatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow),
-            UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow),
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow,
             User = user
         };
 
@@ -100,7 +100,7 @@ public class PlaylistService : IPlaylistService
         };
 
         playlist.LikedPlaylists.Add(likedPlaylist);
-        playlist.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        playlist.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -115,7 +115,7 @@ public class PlaylistService : IPlaylistService
         if (likedPlaylist == null) return StatusResult.Failure(404, "Playlist not liked by user.");
 
         _dbContext.LikedPlaylists.Remove(likedPlaylist);
-        playlist.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        playlist.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -128,7 +128,7 @@ public class PlaylistService : IPlaylistService
 
         FileHelper.DeleteFile(playlist.CoverImagePath);
         playlist.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
-        playlist.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        playlist.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -149,7 +149,7 @@ public class PlaylistService : IPlaylistService
         }
 
         playlist.Name = playlistDto.Name;
-        playlist.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        playlist.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -191,7 +191,7 @@ public class PlaylistService : IPlaylistService
             Playlist = playlist
         };
 
-        playlist.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        playlist.UpdatedAtUtc = DateTime.UtcNow;
 
         _dbContext.PlaylistSongs.Add(playlistSong);
         await _dbContext.SaveChangesAsync();
@@ -229,7 +229,7 @@ public class PlaylistService : IPlaylistService
             return StatusResult.Failure(404, "Playlist not found for user.");
 
         _dbContext.PlaylistSongs.Remove(playlistSong);
-        playlist.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        playlist.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);

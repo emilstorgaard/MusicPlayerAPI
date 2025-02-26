@@ -93,8 +93,8 @@ public class SongService : ISongService
             AudioFilePath = audioFilePath,
             CoverImagePath = coverImagePath,
             UserId = userId,
-            CreatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow),
-            UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow),
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow,
             User = user
         };
 
@@ -122,7 +122,7 @@ public class SongService : ISongService
             User = user
         };
         song.LikedSongs.Add(likedSong);
-        song.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        song.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -137,7 +137,7 @@ public class SongService : ISongService
         if (likedSong == null) return StatusResult.Failure(404, "Song not found in your liked songs.");
 
         _dbContext.LikedSongs.Remove(likedSong);
-        song.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        song.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -150,7 +150,7 @@ public class SongService : ISongService
 
         FileHelper.DeleteFile(song.CoverImagePath);
         song.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
-        song.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        song.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);
@@ -178,7 +178,7 @@ public class SongService : ISongService
 
         song.Title = songDto.Title;
         song.Artist = songDto.Artist;
-        song.UpdatedAtUtc = TimeZoneHelper.GetCopenhagenTime(DateTime.UtcNow);
+        song.UpdatedAtUtc = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
         return StatusResult.Success(200);

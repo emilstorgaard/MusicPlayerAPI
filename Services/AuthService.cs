@@ -54,7 +54,7 @@ public class AuthService : IAuthService
         }
         catch (Exception ex)
         {
-            return StatusResult<TokenRespDto>.Failure(500, "An error occurred while generating the token.");
+            return StatusResult<TokenRespDto>.Failure(500, $"An error occurred while generating the token: {ex.Message}");
         }
     }
 }
