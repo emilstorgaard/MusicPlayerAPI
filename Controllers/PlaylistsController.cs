@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MusicPlayerAPI.Dtos.Request;
+using MusicPlayerAPI.Dtos.Response;
 using MusicPlayerAPI.Helpers;
-using MusicPlayerAPI.Models.Dtos.Request;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
@@ -11,149 +12,124 @@ namespace MusicPlayerAPI.Controllers;
 public class PlaylistsController : ControllerBase
 {
     private readonly IPlaylistService _playlistService;
-    private readonly ISongService _songService;
 
-    public PlaylistsController(IPlaylistService playlistService, ISongService songService)
+    public PlaylistsController(IPlaylistService playlistService)
     {
         _playlistService = playlistService;
-        _songService = songService;
     }
 
+    [Authorize]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<ActionResult<List<PlaylistRespDto>>> GetAllByUserId()
     {
-        var result = await _playlistService.GetAll();
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
+        int userId = UserHelper.GetUserId(User);
 
-        return Ok(result.Data);
+        var result = await _playlistService.GetAllByUserId(userId);
+        return Ok(result);
     }
 
     [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<ActionResult<PlaylistRespDto>> GetById(int id)
     {
-        var result = await _playlistService.GetById(id);
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
+        int userId = UserHelper.GetUserId(User);
 
-        return Ok(result.Data);
+        var result = await _playlistService.GetById(id, userId);
+        return Ok(result);
     }
 
     [HttpGet("{id:int}/cover")]
-    public async Task<IActionResult> GetCoverImage(int id)
+    public async Task<IActionResult> GetCoverImageById(int id)
     {
-        var result = await _playlistService.GetById(id);
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
-
-        var playlist = result.Data;
-
-        if (string.IsNullOrEmpty(playlist?.CoverImagePath)) return NotFound("Cover image path is missing.");
-
-        var coverImagePath = FileHelper.GetFullPath(playlist.CoverImagePath);
-
-        if (!System.IO.File.Exists(coverImagePath)) return NotFound("Cover image not found.");
-
-        return PhysicalFile(coverImagePath, "image/jpeg");
+        var result = await _playlistService.GetCoverImagePath(id);
+        return PhysicalFile(result, "image/jpeg");
     }
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> AddPlaylist([FromForm] PlaylistReqDto playlistDto, [FromForm] IFormFile? coverImageFile)
+    public async Task<IActionResult> Add([FromForm] PlaylistReqDto playlistDto)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _playlistService.Add(playlistDto, coverImageFile, userId);
-        return StatusCode(result.Status, result.Message);
+        await _playlistService.Add(playlistDto, userId);
+        return StatusCode(201, "Playlist was successfully added");
     }
 
     [Authorize]
     [HttpPost("{id:int}/like")]
-    public async Task<IActionResult> LikePlaylist(int id)
+    public async Task<IActionResult> Like(int id)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _playlistService.Like(id, userId);
-        return StatusCode(result.Status, result.Message);
+        await _playlistService.Like(id, userId);
+        return Ok("Playlist was liked successfully");
     }
 
     [Authorize]
     [HttpPost("{id:int}/dislike")]
-    public async Task<IActionResult> DislikePlaylist(int id)
+    public async Task<IActionResult> Dislike(int id)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _playlistService.Dislike(id, userId);
-        return StatusCode(result.Status, result.Message);
+        await _playlistService.Dislike(id, userId);
+        return Ok("Playlist was successfully disliked");
     }
 
     [Authorize]
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdatePlaylist(int id, [FromForm] PlaylistReqDto playlistDto, [FromForm] IFormFile? coverImageFile)
+    public async Task<IActionResult> Update(int id, [FromForm] PlaylistReqDto playlistDto)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _playlistService.Update(id, playlistDto, coverImageFile, userId);
-        return StatusCode(result.Status, result.Message);
+        await _playlistService.Update(id, playlistDto, userId);
+        return Ok("Playlist was successfully updated");
     }
 
     [Authorize]
     [HttpPut("{id:int}/cover/remove")]
-    public async Task<IActionResult> RemoveCoverImage(int id)
+    public async Task<IActionResult> RemoveCoverImageById(int id)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _playlistService.UpdateCoverImage(id, userId);
-        return StatusCode(result.Status, result.Message);
+        await _playlistService.UpdateCoverImage(id, userId);
+        return Ok("Playlist cover image was successfully removed");
     }
 
     [Authorize]
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> DeletePlaylist(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _playlistService.Delete(id, userId);
-        return StatusCode(result.Status, result.Message);
+        await _playlistService.Delete(id, userId);
+        return Ok("Playlist was successfully deleted");
     }
 
     [Authorize]
     [HttpPost("{playlistId}/songs/{songId}")]
     public async Task<IActionResult> AddSongToPlaylist(int playlistId, int songId)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
-
-        var playlistResult = await _playlistService.GetById(playlistId);
-        if (playlistResult.Status != 200) return StatusCode(playlistResult.Status, playlistResult.Message);
-
-        var songResult = await _songService.GetById(songId);
-        if (songResult.Status != 200) return StatusCode(songResult.Status, songResult.Message);
-
-        var result = await _playlistService.AddToPlaylist(playlistId, songId, userId);
-        return StatusCode(result.Status, result.Message);
+        int userId = UserHelper.GetUserId(User);
+        
+        await _playlistService.AddToPlaylist(playlistId, songId, userId);
+        return Ok("Song was successfully added to playlist");
     }
 
     [HttpGet("{id}/songs")]
-    public async Task<IActionResult> GetAllSongsByPlaylistId(int id)
+    public async Task<ActionResult<List<SongRespDto>>> GetAllSongsByPlaylistId(int id)
     {
-        var result = await _playlistService.GetAllSongsByPlaylistId(id);
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
+        int userId = UserHelper.GetUserId(User);
 
-        return Ok(result.Data);
+        var result = await _playlistService.GetAllSongsByPlaylistId(id, userId);
+        return Ok(result);
     }
 
     [Authorize]
     [HttpDelete("{playlistId}/songs/{songId}")]
     public async Task<IActionResult> RemoveSongFromPlaylist(int playlistId, int songId)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _playlistService.RemoveFromPlaylist(playlistId, songId, userId);
-        return StatusCode(result.Status, result.Message);
+        await _playlistService.RemoveFromPlaylist(playlistId, songId, userId);
+        return Ok("Song was successfully removed from playlist");
     }
 }

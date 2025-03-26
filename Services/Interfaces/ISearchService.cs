@@ -1,8 +1,8 @@
-﻿using MusicPlayerAPI.Models.Entities;
+﻿using MusicPlayerAPI.Dtos.Response;
 
 namespace MusicPlayerAPI.Services.Interfaces;
 
 public interface ISearchService
 {
-    Task<StatusResult<(List<Playlist>, List<Song>)>> SearchAsync(string query);
+    Task<SearchRespDto> SearchAsync(string query, int userId);
 }

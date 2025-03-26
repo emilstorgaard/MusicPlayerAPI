@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MusicPlayerAPI.Models.Entities;
+using MusicPlayerAPI.Models;
 
-namespace MusicPlayerAPI.Data;
+namespace MusicPlayerAPI.Database;
 
 public class ApplicationDbContext : DbContext
 {
@@ -56,15 +56,15 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<LikedPlaylist>()
             .HasOne(lp => lp.User)
-            .WithMany(u => u.LikedPlaylists)
+            .WithMany(lp => lp.LikedPlaylists)
             .HasForeignKey(lp => lp.UserId)
-            .OnDelete(DeleteBehavior.NoAction);
+            .OnDelete(DeleteBehavior.NoAction);  // Keeps LikedPlaylist even if User is deleted
 
         modelBuilder.Entity<LikedPlaylist>()
             .HasOne(lp => lp.Playlist)
-            .WithMany(p => p.LikedPlaylists)
+            .WithMany(lp => lp.LikedPlaylists)
             .HasForeignKey(lp => lp.PlaylistId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade);  // Deletes LikedPlaylist when Playlist is deleted
 
         // Default value configuration for CreatedAt and UpdatedAt property
         modelBuilder.Entity<User>()

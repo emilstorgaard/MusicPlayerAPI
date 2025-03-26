@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MusicPlayerAPI.Models.Dtos.Request;
+using MusicPlayerAPI.Dtos.Request;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
@@ -21,20 +21,13 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> GetAllUsers()
     {
         var result = await _userService.GetAll();
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
-
-        return Ok(result.Data);
+        return Ok(result);
     }
 
     [HttpPost("register")]
     public async Task<IActionResult> AddUser([FromForm] UserReqDto userReqDto)
     {
-        var existingUser = await _userService.GetUserByEmailAsync(userReqDto.Email);
-        if (existingUser != null) return StatusCode(400, "User with this email already exists.");
-
-        var result = await _userService.AddUser(userReqDto);
-        if (result.Status != 201) return StatusCode(result.Status, result.Message);
-
-        return StatusCode(result.Status, result.Message);
+        await _userService.AddUser(userReqDto);
+        return Ok("User registered successfully.");
     }
 }

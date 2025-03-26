@@ -1,97 +1,125 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using MusicPlayerAPI.Data;
+using MusicPlayerAPI;
+using MusicPlayerAPI.Database;
 using MusicPlayerAPI.Middleware;
+using MusicPlayerAPI.Repositories.Interfaces;
+using MusicPlayerAPI.Repositories;
 using MusicPlayerAPI.Services;
 using MusicPlayerAPI.Services.Interfaces;
 using System.Text;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Configure services
-ConfigureServices(builder);
-
-var app = builder.Build();
-
-// Configure middleware
-ConfigureMiddleware(app);
-
-app.Run();
-
-void ConfigureServices(WebApplicationBuilder builder)
+public class Program
 {
-    builder.Services.AddControllers();
-
-    // Configure DbContext
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Database connection string is not configured.");
-
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(connectionString));
-
-    // Configure Authentication
-    ConfigureAuthentication(builder);
-
-    // Register application services
-    RegisterServices(builder);
-
-    // Configure CORS
-    builder.Services.AddCors(options =>
+    public static void Main(string[] args)
     {
-        options.AddPolicy("AllowAllOrigins", policy =>
+        var builder = WebApplication.CreateBuilder(args);
+
+        if (builder.Environment.IsDevelopment())
         {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
+            builder.Configuration
+                .AddJsonFile(
+                    "local.settings.json",
+                    optional: true,
+                    reloadOnChange: true
+                );
+        }
+
+        ConfigureServices(builder);
+        ConfigureAuthentication(builder);
+        ConfigureCors(builder);
+
+        var app = builder.Build();
+        ConfigurePipeline(app);
+
+        app.Run();
+    }
+
+    public static void ConfigureServices(WebApplicationBuilder builder)
+    {
+        builder.Services.AddControllers();
+
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new NullReferenceException("Database connection string is not configured.");
+
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseSqlServer(connectionString));
+
+        builder.Services.AddSingleton(sp => {
+            var configuration = sp.GetRequiredService<IConfiguration>();
+
+            var settings = new Settings
+            {
+                UploadAudioFolderPath = configuration["FilePaths:AudioFolder"] ?? throw new NullReferenceException($"No {nameof(configuration)} found in configuration!"),
+                UploadImageFolderPath = configuration["FilePaths:ImageFolder"] ?? throw new NullReferenceException($"No {nameof(configuration)} found in configuration!"),
+                AllowedAudioExtensions = configuration.GetSection("FileTypes:AudioExtensions").Get<string[]>() ?? throw new NullReferenceException($"No {nameof(configuration)} found in configuration!"),
+                AllowedImageExtensions = configuration.GetSection("FileTypes:ImageExtensions").Get<string[]>() ?? throw new NullReferenceException($"No {nameof(configuration)} found in configuration!"),
+                JwtSecret = configuration["JwtSettings:Secret"] ?? throw new NullReferenceException($"No {nameof(configuration)} found in configuration!"),
+                JwtExpiryHours = int.TryParse(configuration["JwtSettings:ExpiryHours"], out var expiry) ? expiry : throw new NullReferenceException($"No {nameof(configuration)} found in configuration!")
+            };
+
+            return settings;
         });
-    });
-}
 
-void ConfigureAuthentication(WebApplicationBuilder builder)
-{
-    var jwtSecret = builder.Configuration["JwtSettings:Secret"]
-        ?? throw new InvalidOperationException("JWT Secret is not configured.");
+        builder.Services.AddScoped<ISongService, SongService>();
+        builder.Services.AddScoped<IPlaylistService, PlaylistService>();
+        builder.Services.AddScoped<ISearchService, SearchService>();
+        builder.Services.AddScoped<IUserService, UserService>();
+        builder.Services.AddScoped<IAuthService, AuthService>();
 
-    var key = Encoding.ASCII.GetBytes(jwtSecret);
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<ISongRepository, SongRepository>();
+        builder.Services.AddScoped<IPlaylistRepository, PlaylistRepository>();
+        builder.Services.AddScoped<ISearchRepository, SearchRepository>();
+    }
 
-    builder.Services.AddAuthentication(options =>
+    public static void ConfigureAuthentication(WebApplicationBuilder builder)
     {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.RequireHttpsMetadata = false;
-        options.SaveToken = true;
-        options.TokenValidationParameters = new TokenValidationParameters
+        var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? throw new NullReferenceException("JWT Secret is not configured.");
+
+        var key = Encoding.ASCII.GetBytes(jwtSecret);
+
+        builder.Services.AddAuthentication(options =>
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            ValidateIssuer = false,
-            ValidateAudience = false
-        };
-    });
-}
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.RequireHttpsMetadata = false;
+            options.SaveToken = true;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = false,
+                ValidateAudience = false
+            };
+        });
+    }
 
-void RegisterServices(WebApplicationBuilder builder)
-{
-    builder.Services.AddScoped<ISongService, SongService>();
-    builder.Services.AddScoped<IPlaylistService, PlaylistService>();
-    builder.Services.AddScoped<ISearchService, SearchService>();
-    builder.Services.AddScoped<IUserService, UserService>();
-    builder.Services.AddScoped<IAuthService, AuthService>();
-}
+    public static void ConfigureCors(WebApplicationBuilder builder)
+    {
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAllOrigins", policy =>
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader();
+            });
+        });
+    }
 
-void ConfigureMiddleware(WebApplication app)
-{
-    app.UseMiddleware<ExceptionHandlingMiddleware>();
-
-    app.UseHttpsRedirection();
-    app.UseHsts();
-    app.UseCors("AllowAllOrigins");
-    app.UseRouting();
-    app.UseAuthentication();
-    app.UseAuthorization();
-    app.MapControllers();
+    public static void ConfigurePipeline(WebApplication app)
+    {
+        app.UseHsts();
+        app.UseHttpsRedirection();
+        app.UseRouting();
+        app.UseCors("AllowAllOrigins");
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.UseMiddleware<ExceptionHandlingMiddleware>();
+        app.MapControllers();
+    }
 }

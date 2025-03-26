@@ -1,17 +1,22 @@
-﻿using Microsoft.EntityFrameworkCore;
-using MusicPlayerAPI.Data;
-using MusicPlayerAPI.Models.Entities;
+﻿using MusicPlayerAPI.Dtos.Response;
+using MusicPlayerAPI.Exceptions;
+using MusicPlayerAPI.Mappers;
+using MusicPlayerAPI.Repositories.Interfaces;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Services;
 
 public class SearchService : ISearchService
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly ISearchRepository _searchRepository;
+    private readonly IPlaylistRepository _playlistRepository;
+    private readonly ISongRepository _songRepository;
 
-    public SearchService(ApplicationDbContext dbContext)
-    {
-        _dbContext = dbContext;
+    public SearchService(ISearchRepository searchRepository, IPlaylistRepository playlistRepository, ISongRepository songRepository)
+    {  
+        _searchRepository = searchRepository;
+        _playlistRepository = playlistRepository;
+        _songRepository = songRepository;
     }
 
     private bool IsValidQuery(string query, out string errorMessage)
@@ -22,32 +27,34 @@ public class SearchService : ISearchService
             return false;
         }
 
-        if (query.Length < 3)
-        {
-            errorMessage = "Search query must be at least 3 characters long.";
-            return false;
-        }
-
         errorMessage = string.Empty;
         return true;
     }
 
-    public async Task<StatusResult<(List<Playlist>, List<Song>)>> SearchAsync(string query)
+    public async Task<SearchRespDto> SearchAsync(string query, int userId)
     {
-        if (!IsValidQuery(query, out var errorMessage)) return StatusResult<(List<Playlist>, List<Song>)>.Failure(400, errorMessage);
+        if (!IsValidQuery(query, out var errorMessage)) throw new BadRequestException($"Invalid search: {errorMessage}");
 
         query = query.ToLower();
 
-        var playlists = await _dbContext.Playlists
-            .AsNoTracking()
-            .Where(p => p.Name.ToLower().Contains(query))
-            .ToListAsync();
+        var playlists = await _searchRepository.GetPlaylistsBySearch(query);
 
-        var songs = await _dbContext.Songs
-            .AsNoTracking()
-            .Where(s => s.Title.ToLower().Contains(query) || s.Artist.ToLower().Contains(query))
-            .ToListAsync();
+        var likedPlaylistIds = await _playlistRepository.GetLikedPlaylistIdsByUser(userId);
+        var playlistsDto =  playlists.Select(playlist =>
+            PlaylistMapper.MapToDto(playlist, likedPlaylistIds.Contains(playlist.Id))
+        ).ToList();
 
-        return StatusResult<(List<Playlist>, List<Song>)>.Success((playlists, songs), 200, "Search results found.");
+        var songs = await _searchRepository.GetSongsBySearch(query);
+
+        var likedSongIds = await _songRepository.GetLikedSongIdsByUser(userId);
+        var songsDto = songs.Select(song =>
+            SongMapper.MapToDto(song, likedSongIds.Contains(song.Id))
+        ).ToList();
+
+        return new SearchRespDto
+        {
+            Playlists = playlistsDto,
+            Songs = songsDto
+        };
     }
 }

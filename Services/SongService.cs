@@ -1,90 +1,71 @@
-﻿using Microsoft.EntityFrameworkCore;
-using MusicPlayerAPI.Data;
+﻿using MusicPlayerAPI.Dtos.Request;
+using MusicPlayerAPI.Exceptions;
 using MusicPlayerAPI.Helpers;
-using MusicPlayerAPI.Mappers;
-using MusicPlayerAPI.Models.Dtos.Request;
-using MusicPlayerAPI.Models.Dtos.Response;
-using MusicPlayerAPI.Models.Entities;
+using MusicPlayerAPI.Models;
+using MusicPlayerAPI.Repositories.Interfaces;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Services;
 
 public class SongService : ISongService
 {
-    private readonly ApplicationDbContext _dbContext;
-    private readonly string _uploadAudioFolderPath;
-    private readonly string _uploadImageFolderPath;
-    private readonly string[] _allowedAudioExtensions;
-    private readonly string[] _allowedImageExtensions;
+    private readonly Settings _settings;
+    private readonly ISongRepository _songRepository;
+    private readonly IUserRepository _userRepository;
 
-    public SongService(ApplicationDbContext dbContext, IConfiguration configuration)
+    public SongService(Settings settings, ISongRepository songRepository, IUserRepository userRepository)
     {
-        _dbContext = dbContext;
-        _uploadAudioFolderPath = configuration["FilePaths:AudioFolder"] ?? throw new ArgumentNullException(nameof(configuration), "Audio folder path is not configured.");
-        _uploadImageFolderPath = configuration["FilePaths:ImageFolder"] ?? throw new ArgumentNullException(nameof(configuration), "Image folder path is not configured.");
-        _allowedAudioExtensions = configuration.GetSection("FileTypes:AudioExtensions").Get<string[]>() ?? throw new ArgumentNullException(nameof(configuration), "AudioExtensions is missing.");
-        _allowedImageExtensions = configuration.GetSection("FileTypes:ImageExtensions").Get<string[]>() ?? throw new ArgumentNullException(nameof(configuration), "ImageExtensions is missing.");
-        Directory.CreateDirectory(_uploadAudioFolderPath);
-        Directory.CreateDirectory(_uploadImageFolderPath);
+        _settings = settings;
+        Directory.CreateDirectory(_settings.UploadAudioFolderPath);
+        Directory.CreateDirectory(_settings.UploadImageFolderPath);
+        _songRepository = songRepository;
+        _userRepository = userRepository;
     }
 
-    public async Task<StatusResult<List<SongRespDto>>> GetAll()
+    public async Task<FileStream> Stream(int id)
     {
-        var songs = await _dbContext.Songs
-            .AsNoTracking()
-            .Select(s => new
-            {
-                Song = s,
-                IsLiked = _dbContext.LikedSongs.Any(ls => ls.SongId == s.Id)
-            })
-            .ToListAsync();
+        var song = await _songRepository.GetSongById(id);
+        if (song == null) throw new NotFoundException("Song not found.");
 
-        if (!songs.Any()) return StatusResult<List<SongRespDto>>.Failure(404, "No songs found.");
+        if (string.IsNullOrEmpty(song?.AudioFilePath)) throw new NotFoundException("Song file path is missing.");
 
-        var songDtos = songs.Select(s => SongMapper.MapToDto(s.Song, s.IsLiked)).ToList();
-        return StatusResult<List<SongRespDto>>.Success(songDtos, 200);
+        var audioFilePath = FileHelper.GetFullPath(song.AudioFilePath);
+
+        if (!File.Exists(audioFilePath)) throw new NotFoundException("Song file not found.");
+
+        var fileStream = File.OpenRead(audioFilePath);
+        return fileStream;
     }
 
-    public async Task<StatusResult<SongRespDto>> GetById(int id)
+    public async Task<string> GetCoverImage(int id)
     {
-        var song = await _dbContext.Songs.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
-        if (song == null) return StatusResult<SongRespDto>.Failure(404, "Song not found.");
+        var song = await _songRepository.GetSongById(id);
+        if (song == null) throw new NotFoundException("Song not found.");
 
-        bool isLiked = await _dbContext.LikedSongs.AnyAsync(ls => ls.SongId == id);
-        var songDto = SongMapper.MapToDto(song, isLiked);
-        return StatusResult<SongRespDto>.Success(songDto, 200);
+        if (string.IsNullOrEmpty(song?.CoverImagePath)) throw new NotFoundException("Cover image path is missing.");
+
+        var coverImagePath = FileHelper.GetFullPath(song.CoverImagePath);
+
+        if (!System.IO.File.Exists(coverImagePath)) throw new NotFoundException("Cover image not found.");
+
+        return coverImagePath;
     }
 
-    public StatusResult<FileStream> Stream(string songPath)
+    public async Task Upload(SongReqDto songDto, int userId)
     {
-        if (!File.Exists(songPath)) return StatusResult<FileStream>.Failure(404, "Song file not found.");
+        if (songDto == null || songDto.AudioFile == null || !FileHelper.IsValidFile(songDto.AudioFile, _settings.AllowedAudioExtensions))
+            throw new BadRequestException("Invalid song data.");
 
-        try
-        {
-            var fileStream = File.OpenRead(songPath);
-            return StatusResult<FileStream>.Success(fileStream, 200);
-        }
-        catch (Exception ex)
-        {
-            return StatusResult<FileStream>.Failure(500, $"Error occurred while opening the file: {ex.Message}");
-        }
-    }
+        var user = await _userRepository.GetUserById(userId);
+        if (user == null) throw new NotFoundException("User not found.");
 
-    public async Task<StatusResult> Upload(SongReqDto songDto, IFormFile audioFile, IFormFile? coverImageFile, int userId)
-    {
-        if (songDto == null || audioFile == null || !FileHelper.IsValidFile(audioFile, _allowedAudioExtensions))
-            return StatusResult.Failure(400, "Invalid song data or audio file.");
+        var existingSong = await _songRepository.SongExists(songDto.Title, songDto.Artist);
+        if (existingSong) throw new ConflictException("A song with the same title and artist already exists.");
 
-        var user = await _dbContext.Users.FindAsync(userId);
-        if (user == null) return StatusResult.Failure(404, "User not found.");
-
-        var existingSong = await _dbContext.Songs.AnyAsync(p => p.Title == songDto.Title && p.Artist == songDto.Artist);
-        if (existingSong) return StatusResult.Failure(400, "Song already exists.");
-
-        var audioFilePath = FileHelper.SaveFile(audioFile, _uploadAudioFolderPath);
-        var coverImagePath = coverImageFile != null && FileHelper.IsValidFile(coverImageFile, _allowedImageExtensions)
-            ? FileHelper.SaveFile(coverImageFile, _uploadImageFolderPath)
-            : FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
+        var audioFilePath = FileHelper.SaveFile(songDto.AudioFile, _settings.UploadAudioFolderPath);
+        var coverImagePath = songDto.CoverImageFile != null && FileHelper.IsValidFile(songDto.CoverImageFile, _settings.AllowedImageExtensions)
+            ? FileHelper.SaveFile(songDto.CoverImageFile, _settings.UploadImageFolderPath)
+            : FileHelper.GetDefaultCoverImagePath(_settings.UploadImageFolderPath);
 
         var song = new Song
         {
@@ -98,109 +79,92 @@ public class SongService : ISongService
             User = user
         };
 
-        await _dbContext.Songs.AddAsync(song);
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(201);
+        await _songRepository.AddSong(song);
     }
 
-    public async Task<StatusResult> Like(int songId, int userId)
-    {
-        var song = await _dbContext.Songs.Include(s => s.LikedSongs).FirstOrDefaultAsync(s => s.Id == songId);
-        if (song == null) return StatusResult.Failure(404, "Song not found.");
-
-        var user = await _dbContext.Users.FindAsync(userId);
-        if (user == null) return StatusResult.Failure(404, "User not found.");
-
-        bool isAlreadyLiked = song.LikedSongs.Any(ls => ls.SongId == songId && ls.UserId == userId);
-        if (isAlreadyLiked) return StatusResult.Failure(400, "Song already liked.");
+    public async Task Like(int songId, int userId)
+    {   
+        var isAlreadyLiked = await _songRepository.IsSongLikedByUser(songId, userId);
+        if (isAlreadyLiked) throw new ConflictException("Song already liked.");
 
         var likedSong = new LikedSong
         {
             UserId = userId,
-            SongId = songId,
-            Song = song,
-            User = user
+            SongId = songId
         };
-        song.LikedSongs.Add(likedSong);
+
+        var song = await _songRepository.GetSongById(songId);
+        if (song == null) throw new NotFoundException("Song not found.");
+
         song.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _songRepository.LikeSong(likedSong);
     }
 
-    public async Task<StatusResult> Dislike(int songId, int userId)
+    public async Task Dislike(int songId, int userId)
     {
-        var song = await _dbContext.Songs.FindAsync(songId);
-        if (song == null) return StatusResult.Failure(404, "Song not found.");
+        var likedSong = await _songRepository.GetLikedSongByUser(songId, userId);
+        if (likedSong == null) throw new NotFoundException("Song not found in your liked songs.");
 
-        var likedSong = await _dbContext.LikedSongs.FirstOrDefaultAsync(ls => ls.SongId == songId && ls.UserId == userId);
-        if (likedSong == null) return StatusResult.Failure(404, "Song not found in your liked songs.");
+        var song = await _songRepository.GetSongById(songId);
+        if (song == null) throw new NotFoundException("Song not found.");
 
-        _dbContext.LikedSongs.Remove(likedSong);
         song.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _songRepository.DislikeSong(likedSong);
     }
 
-    public async Task<StatusResult> UpdateCoverImage(int songId, int userId)
+    public async Task UpdateCoverImage(int songId, int userId)
     {
-        var song = await _dbContext.Songs.FirstOrDefaultAsync(s => s.Id == songId && s.UserId == userId);
-        if (song == null) return StatusResult.Failure(404, "Song not found for user.");
+        var song = await _songRepository.GetSongById(songId);
+        if (song == null) throw new NotFoundException("Song not found.");
+        if (song.UserId != userId) throw new UnauthorizedException("You are not allowed to update this song.");
 
         FileHelper.DeleteFile(song.CoverImagePath);
-        song.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
+
+        song.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_settings.UploadImageFolderPath);
         song.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _songRepository.UpdateSong(song);
     }
 
-    public async Task<StatusResult> Update(int id, SongReqDto songDto, IFormFile? audioFile, IFormFile? coverImageFile, int userId)
+    public async Task Update(int id, SongReqDto songDto, int userId)
     {
-        var song = await _dbContext.Songs.FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
-        if (song == null) return StatusResult.Failure(404, "Your song was not found.");
+        var song = await _songRepository.GetSongById(id);
+        if (song == null) throw new NotFoundException("Song was not found.");
+        if (song.UserId != userId) throw new UnauthorizedException("You are not allowed to update this song.");
 
-        var existingSong = await _dbContext.Songs.AnyAsync(s => s.Id != id && s.Title == songDto.Title && s.Artist == songDto.Artist);
-        if (existingSong) return StatusResult.Failure(409, "A song with the same title and artist already exists.");
+        var existingSong = await _songRepository.SongExists(songDto.Title, songDto.Artist);
+        if (existingSong) throw new NotFoundException("A song with the same title and artist already exists.");
 
-        if (coverImageFile != null && FileHelper.IsValidFile(coverImageFile, _allowedImageExtensions))
+        if (songDto.CoverImageFile != null && FileHelper.IsValidFile(songDto.CoverImageFile, _settings.AllowedImageExtensions))
         {
             FileHelper.DeleteFile(song.CoverImagePath);
-            song.CoverImagePath = FileHelper.SaveFile(coverImageFile, _uploadImageFolderPath);
+            song.CoverImagePath = FileHelper.SaveFile(songDto.CoverImageFile, _settings.UploadImageFolderPath);
         }
 
-        if (audioFile != null && FileHelper.IsValidFile(audioFile, _allowedAudioExtensions))
+        if (songDto.AudioFile != null && FileHelper.IsValidFile(songDto.AudioFile, _settings.AllowedAudioExtensions))
         {
             FileHelper.DeleteFile(song.AudioFilePath);
-            song.AudioFilePath = FileHelper.SaveFile(audioFile, _uploadAudioFolderPath);
+            song.AudioFilePath = FileHelper.SaveFile(songDto.AudioFile, _settings.UploadAudioFolderPath);
         }
 
         song.Title = songDto.Title;
         song.Artist = songDto.Artist;
         song.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _songRepository.UpdateSong(song);
     }
 
-    public async Task<StatusResult> Delete(int id, int userId)
+    public async Task Delete(int id, int userId)
     {
-        var song = await _dbContext.Songs.FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
-        if (song == null) return StatusResult<SongReqDto>.Failure(404, "Song not found for user.");
+        var song = await _songRepository.GetSongById(id);
+        if (song == null) throw new NotFoundException("Song not found.");
+        if (song.UserId != userId) throw new UnauthorizedException("You are not allowed to delete this song.");
 
-        try
-        {
-            FileHelper.DeleteFile(song.AudioFilePath);
-            FileHelper.DeleteFile(song.CoverImagePath);
-            _dbContext.Songs.Remove(song);
-            await _dbContext.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            return StatusResult.Failure(500, $"Error occurred while deleting: {ex.Message}");
-        }
+        FileHelper.DeleteFile(song.AudioFilePath);
+        FileHelper.DeleteFile(song.CoverImagePath);
 
-        return StatusResult.Success(200);
+        await _songRepository.DeleteSong(song);
     }
 }

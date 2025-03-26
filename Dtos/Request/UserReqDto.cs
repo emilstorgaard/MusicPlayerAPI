@@ -1,6 +1,6 @@
-﻿namespace MusicPlayerAPI.Models.Dtos.Request;
+﻿namespace MusicPlayerAPI.Dtos.Request;
 
-public class LoginReqDto
+public class UserReqDto
 {
     public required string Email { get; set; }
     public required string Password { get; set; }

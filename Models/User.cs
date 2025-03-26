@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace MusicPlayerAPI.Models.Entities;
+namespace MusicPlayerAPI.Models;
 
 public class User
 {

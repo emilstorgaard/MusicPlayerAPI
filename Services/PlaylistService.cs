@@ -1,69 +1,81 @@
-﻿using Microsoft.EntityFrameworkCore;
-using MusicPlayerAPI.Data;
+﻿using MusicPlayerAPI.Dtos.Request;
+using MusicPlayerAPI.Dtos.Response;
+using MusicPlayerAPI.Exceptions;
 using MusicPlayerAPI.Helpers;
 using MusicPlayerAPI.Mappers;
-using MusicPlayerAPI.Models.Dtos.Request;
-using MusicPlayerAPI.Models.Dtos.Response;
-using MusicPlayerAPI.Models.Entities;
+using MusicPlayerAPI.Models;
+using MusicPlayerAPI.Repositories.Interfaces;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Services;
 
 public class PlaylistService : IPlaylistService
 {
-    private readonly ApplicationDbContext _dbContext;
-    private readonly string _uploadImageFolderPath;
-    private readonly string[] _allowedImageExtensions;
+    private readonly Settings _settings;
+    private readonly ISongService _songService;
+    private readonly IPlaylistRepository _playlistRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly ISongRepository _songRepository;
 
-    public PlaylistService(ApplicationDbContext dbContext, IConfiguration configuration)
+    public PlaylistService(Settings settings, ISongService songService, IPlaylistRepository playlistRepository, IUserRepository userRepository, ISongRepository songRepository)
     {
-        _dbContext = dbContext;
-        _uploadImageFolderPath = /*Path.Combine(Directory.GetCurrentDirectory(), */configuration["FilePaths:ImageFolder"] ?? throw new ArgumentNullException(nameof(configuration), "ImageFolder path is not configured.")/*)*/;
-        _allowedImageExtensions = configuration.GetSection("FileTypes:ImageExtensions").Get<string[]>() ?? throw new ArgumentNullException(nameof(configuration), "ImageExtensions is missing.");
-        Directory.CreateDirectory(_uploadImageFolderPath);
+        _settings = settings;
+        Directory.CreateDirectory(_settings.UploadImageFolderPath);
+        _songService = songService;
+        _playlistRepository = playlistRepository;
+        _userRepository = userRepository;
+        _songRepository = songRepository;
     }
 
-    public async Task<StatusResult<List<PlaylistRespDto>>> GetAll()
+    public async Task<List<PlaylistRespDto>> GetAllByUserId(int userId)
     {
-        var playlists = await _dbContext.Playlists
-            .AsNoTracking()
-            .Select(p => new
-            {
-                Playlist = p,
-                IsLiked = _dbContext.LikedPlaylists.Any(lp => lp.PlaylistId == p.Id)
-            })
-            .ToListAsync();
+        var playlists = await _playlistRepository.GetAllPlaylistsByUserId(userId);
+        if (!playlists.Any()) throw new NotFoundException("No playlists found for user.");
 
-        if (!playlists.Any()) return StatusResult<List<PlaylistRespDto>>.Failure(404, "No playlists found.");
+        var likedPlaylistIds = await _playlistRepository.GetLikedPlaylistIdsByUser(userId);
 
-        var playlistDtos = playlists.Select(p => PlaylistMapper.MapToDto(p.Playlist, p.IsLiked)).ToList();
-        return StatusResult<List<PlaylistRespDto>>.Success(playlistDtos, 200);
+        return playlists.Select(playlist =>
+            PlaylistMapper.MapToDto(playlist, likedPlaylistIds.Contains(playlist.Id))
+        ).ToList();
     }
 
-
-    public async Task<StatusResult<PlaylistRespDto>> GetById(int id)
+    public async Task<PlaylistRespDto> GetById(int id, int userId)
     {
-        var playlist = await _dbContext.Playlists.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
-        if (playlist == null) return StatusResult<PlaylistRespDto>.Failure(404, "Playlist not found.");
+        var playlist = await _playlistRepository.GetPlaylistById(id);
+        if (playlist == null) throw new NotFoundException("Playlist not found.");
 
-        bool isLiked = await _dbContext.LikedPlaylists.AnyAsync(lp => lp.PlaylistId == id);
+        var isLiked = await _playlistRepository.IsPlaylistLikedByUser(id, userId);
+
         var playlistDto = PlaylistMapper.MapToDto(playlist, isLiked);
-        return StatusResult<PlaylistRespDto>.Success(playlistDto, 200);
+        return playlistDto;
     }
 
-    public async Task<StatusResult> Add(PlaylistReqDto playlistDto, IFormFile? coverImageFile, int userId)
+    public async Task<string> GetCoverImagePath(int id)
     {
-        if (playlistDto == null) return StatusResult.Failure(400, "Playlist data is required.");
+        var playlist = await _playlistRepository.GetPlaylistById(id);
+        if (playlist == null) throw new NotFoundException("Playlist not found.");
 
-        var user = await _dbContext.Users.FindAsync(userId);
-        if (user == null) return StatusResult.Failure(404, "User not found.");
+        if (string.IsNullOrEmpty(playlist?.CoverImagePath)) throw new NotFoundException("Cover image path is missing.");
+        var coverImagePath = FileHelper.GetFullPath(playlist.CoverImagePath);
 
-        var existingPlaylist = await _dbContext.Playlists.AnyAsync(p => p.Name == playlistDto.Name && p.UserId == userId);
-        if (existingPlaylist) return StatusResult.Failure(400, "Playlist already exists.");
+        if (!System.IO.File.Exists(coverImagePath)) throw new NotFoundException("Cover image not found.");
 
-        var filePath = coverImageFile != null && FileHelper.IsValidFile(coverImageFile, _allowedImageExtensions)
-            ? FileHelper.SaveFile(coverImageFile, _uploadImageFolderPath)
-            : FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
+        return coverImagePath;
+    }
+
+    public async Task Add(PlaylistReqDto playlistDto, int userId)
+    {
+        if (playlistDto == null) throw new BadHttpRequestException("Playlist data is missing.");
+
+        var user = await _userRepository.GetUserById(userId);
+        if (user == null) throw new UnauthorizedException("Invalid user ID.");
+
+        var existingPlaylist = await _playlistRepository.PlaylistExists(playlistDto.Name, userId);
+        if (existingPlaylist) throw new ConflictException("You already have a playlist with the same name.");
+
+        var filePath = playlistDto.CoverImageFile != null && FileHelper.IsValidFile(playlistDto.CoverImageFile, _settings.AllowedImageExtensions)
+            ? FileHelper.SaveFile(playlistDto.CoverImageFile, _settings.UploadImageFolderPath)
+            : FileHelper.GetDefaultCoverImagePath(_settings.UploadImageFolderPath);
 
         var playlist = new Playlist
         {
@@ -75,163 +87,134 @@ public class PlaylistService : IPlaylistService
             User = user
         };
 
-        await _dbContext.Playlists.AddAsync(playlist);
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(201);
+        await _playlistRepository.AddPlaylist(playlist);
     }
 
-    public async Task<StatusResult> Like(int playlistId, int userId)
+    public async Task Like(int playlistId, int userId)
     {
-        var playlist = await _dbContext.Playlists.Include(p => p.LikedPlaylists).FirstOrDefaultAsync(p => p.Id == playlistId);
-        if (playlist == null) return StatusResult.Failure(404, "Playlist not found.");
-
-        var user = await _dbContext.Users.FindAsync(userId);
-        if (user == null) return StatusResult.Failure(404, "User not found.");
-
-        var isAlreadyLiked = playlist.LikedPlaylists.Any(lp => lp.PlaylistId == playlistId && lp.UserId == userId);
-        if (isAlreadyLiked) return StatusResult.Failure(400, "Playlist already liked.");
+        var isAlreadyLiked = await _playlistRepository.IsPlaylistLikedByUser(playlistId, userId);
+        if (isAlreadyLiked) throw new ConflictException("Playlist already liked by user.");
 
         var likedPlaylist = new LikedPlaylist
         {
             UserId = userId,
-            PlaylistId = playlistId,
-            Playlist = playlist,
-            User = user,
+            PlaylistId = playlistId
         };
 
-        playlist.LikedPlaylists.Add(likedPlaylist);
+        var playlist = await _playlistRepository.GetPlaylistById(playlistId);
+        if (playlist == null) throw new NotFoundException("Playlist not found.");
+
         playlist.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _playlistRepository.LikePlaylist(likedPlaylist);
     }
 
-    public async Task<StatusResult> Dislike(int playlistId, int userId)
+    public async Task Dislike(int playlistId, int userId)
     {
-        var playlist = await _dbContext.Playlists.FindAsync(playlistId);
-        if (playlist == null) return StatusResult.Failure(404, "Playlist not found.");
+        var likedPlaylist = await _playlistRepository.GetLikedPlaylistByUser(playlistId, userId);
+        if (likedPlaylist == null) throw new ConflictException("Playlist not liked by user.");
 
-        var likedPlaylist = await _dbContext.LikedPlaylists.FirstOrDefaultAsync(lp => lp.PlaylistId == playlistId && lp.UserId == userId);
-        if (likedPlaylist == null) return StatusResult.Failure(404, "Playlist not liked by user.");
+        var playlist = await _playlistRepository.GetPlaylistById(playlistId);
+        if (playlist == null) throw new NotFoundException("Playlist not found.");
 
-        _dbContext.LikedPlaylists.Remove(likedPlaylist);
         playlist.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _playlistRepository.DislikePlaylist(likedPlaylist);
     }
 
-    public async Task<StatusResult> UpdateCoverImage(int playlistId, int userId)
+    public async Task UpdateCoverImage(int playlistId, int userId)
     {
-        var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Id == playlistId && p.UserId == userId);
-        if (playlist == null) return StatusResult.Failure(404, "Playlist not found for user.");
+        var playlist = await _playlistRepository.GetPlaylistById(playlistId);
+        if (playlist == null) throw new NotFoundException("Playlist not found.");
+        if (playlist.UserId != userId) throw new UnauthorizedException("You are not allowed to update this playlist.");
 
         FileHelper.DeleteFile(playlist.CoverImagePath);
-        playlist.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_uploadImageFolderPath);
+
+        playlist.CoverImagePath = FileHelper.GetDefaultCoverImagePath(_settings.UploadImageFolderPath);
         playlist.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _playlistRepository.UpdatePlaylist(playlist);
     }
 
-    public async Task<StatusResult> Update(int id, PlaylistReqDto playlistDto, IFormFile? coverImageFile, int userId)
+    public async Task Update(int id, PlaylistReqDto playlistDto, int userId)
     {
-        var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
-        if (playlist == null) return StatusResult.Failure(404, "Your playlist was not found.");
+        var playlist = await _playlistRepository.GetPlaylistById(id);
+        if (playlist == null) throw new NotFoundException("Playlist was not found.");
+        if (playlist.UserId != userId) throw new UnauthorizedException("You are not allowed to update this playlist.");
 
-        var existingPlaylist = await _dbContext.Playlists.AnyAsync(p => p.Id != id && p.Name == playlistDto.Name && p.UserId == userId);
-        if (existingPlaylist) return StatusResult.Failure(409, "You already have a playlist with the same name.");
+        var existingPlaylist = await _playlistRepository.PlaylistExists(playlistDto.Name, userId);
+        if (existingPlaylist) throw new ConflictException("You already have a playlist with the same name.");
 
-        if (coverImageFile != null && FileHelper.IsValidFile(coverImageFile, _allowedImageExtensions))
+        if (playlistDto.CoverImageFile != null && FileHelper.IsValidFile(playlistDto.CoverImageFile, _settings.AllowedImageExtensions))
         {
             FileHelper.DeleteFile(playlist.CoverImagePath);
-            playlist.CoverImagePath = FileHelper.SaveFile(coverImageFile, _uploadImageFolderPath);
+            playlist.CoverImagePath = FileHelper.SaveFile(playlistDto.CoverImageFile, _settings.UploadImageFolderPath);
         }
 
         playlist.Name = playlistDto.Name;
         playlist.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _playlistRepository.UpdatePlaylist(playlist);
     }
 
-    public async Task<StatusResult> Delete(int id, int userId)
+    public async Task Delete(int id, int userId)
     {
-        var playlist = await _dbContext.Playlists.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
-        if (playlist == null) return StatusResult.Failure(404, "Playlist not found for user.");
+        var playlist = await _playlistRepository.GetPlaylistById(id);
+        if (playlist == null) throw new NotFoundException("Playlist not found.");
+        if (playlist.UserId != userId) throw new UnauthorizedException("You are not allowed to delete this playlist.");
 
-        try
-        {
-            FileHelper.DeleteFile(playlist.CoverImagePath);
-            _dbContext.Playlists.Remove(playlist);
-            await _dbContext.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            return StatusResult.Failure(500, $"Error occurred while deleting: {ex.Message}");
-        }
+        FileHelper.DeleteFile(playlist.CoverImagePath);
 
-        return StatusResult.Success(200);
+        await _playlistRepository.DeletePlaylist(playlist);
     }
 
-    public async Task<StatusResult> AddToPlaylist(int playlistId, int songId, int userId)
+    public async Task AddToPlaylist(int playlistId, int songId, int userId)
     {
-        var songOnPlaylist = await _dbContext.PlaylistSongs.AnyAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
-        if (songOnPlaylist) return StatusResult.Failure(409, "Song already exists on the playlist.");
+        var playlist = await _playlistRepository.GetPlaylistById(playlistId);
+        if (playlist == null) throw new NotFoundException("Playlist not found.");
 
-        var playlist = await _dbContext.Playlists.FindAsync(playlistId);
-        var song = await _dbContext.Songs.FindAsync(songId);
-        if (playlist == null || song == null || playlist.UserId != userId) return StatusResult.Failure(404, "Playlist or Song not found.");
+        var songOnPlaylist = await _playlistRepository.IsSongInPlaylist(playlistId, songId);
+        if (songOnPlaylist) throw new ConflictException("Song already exists in the playlist.");
+
+        var song = await _songRepository.GetSongById(songId);
+        if (playlist == null || song == null) throw new NotFoundException("Playlist or Song not found.");
+        if (playlist.UserId != userId) throw new UnauthorizedException("Playlist not found for user.");
 
         var playlistSong = new PlaylistSong
         {
             PlaylistId = playlistId,
-            SongId = songId,
-            Song = song,
-            Playlist = playlist
+            SongId = songId
         };
 
         playlist.UpdatedAtUtc = DateTime.UtcNow;
 
-        _dbContext.PlaylistSongs.Add(playlistSong);
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _playlistRepository.AddSongToPlaylist(playlistSong);
     }
 
-    public async Task<StatusResult<List<SongRespDto>>> GetAllSongsByPlaylistId(int playlistId)
+    public async Task<List<SongRespDto>> GetAllSongsByPlaylistId(int playlistId, int userId)
     {
-        var songs = await _dbContext.PlaylistSongs
-            .AsNoTracking()
-            .Where(ps => ps.PlaylistId == playlistId)
-            .Select(ps => new
-            {
-                Song = ps.Song,
-                IsLiked = _dbContext.LikedSongs.Any(ls => ls.SongId == ps.Song.Id)
-            })
-            .ToListAsync();
+        var songs = await _playlistRepository.GetSongsByPlaylistId(playlistId);
 
-        var songDtos = songs.Select(s => SongMapper.MapToDto(s.Song, s.IsLiked)).ToList();
+        var likedSongIds = await _songRepository.GetLikedSongIdsFromPlaylist(playlistId, userId);
 
-        if (!songDtos.Any()) return StatusResult<List<SongRespDto>>.Failure(404, "No songs found in the playlist.");
+        var songDtos = songs.Select(song =>
+            SongMapper.MapToDto(song, likedSongIds.Contains(song.Id))
+        ).ToList();
 
-        return StatusResult<List<SongRespDto>>.Success(songDtos, 200);
+        return songDtos;
     }
 
-    public async Task<StatusResult> RemoveFromPlaylist(int playlistId, int songId, int userId)
+    public async Task RemoveFromPlaylist(int playlistId, int songId, int userId)
     {
-        var playlistSong = await _dbContext.PlaylistSongs.FirstOrDefaultAsync(ps => ps.PlaylistId == playlistId && ps.SongId == songId);
-        if (playlistSong == null) return StatusResult.Failure(404, "Song not found on the playlist.");
+        var playlist = await _playlistRepository.GetPlaylistById(playlistId);
+        if (playlist == null) throw new NotFoundException("Playlist not found.");
+        if (playlist.UserId != userId) throw new UnauthorizedException("You are not allowed to modify this playlist.");
 
-        var playlist = await _dbContext.Playlists
-            .FirstOrDefaultAsync(p => p.Id == playlistId);
+        var playlistSong = await _playlistRepository.GetPlaylistSong(playlistId, songId);
+        if (playlistSong == null) throw new NotFoundException("Song not found in the playlist.");
 
-        if (playlist == null || playlist.UserId != userId)
-            return StatusResult.Failure(404, "Playlist not found for user.");
-
-        _dbContext.PlaylistSongs.Remove(playlistSong);
         playlist.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
-        return StatusResult.Success(200);
+        await _playlistRepository.RemoveSongFromPlaylist(playlistSong);
     }
 }

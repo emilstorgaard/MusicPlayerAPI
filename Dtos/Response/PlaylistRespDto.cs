@@ -1,11 +1,9 @@
-﻿namespace MusicPlayerAPI.Models.Dtos.Response;
+﻿namespace MusicPlayerAPI.Dtos.Response;
 
-public class SongRespDto
+public class PlaylistRespDto
 {
     public int Id { get; set; }
-    public required string Title { get; set; }
-    public required string Artist { get; set; }
-    public required string AudioFilePath { get; set; }
+    public required string Name { get; set; }
     public required string CoverImagePath { get; set; }
     public bool IsLiked { get; set; }
     public DateTime CreatedAtUtc { get; set; }

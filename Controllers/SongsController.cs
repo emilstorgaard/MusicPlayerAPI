@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MusicPlayerAPI.Dtos.Request;
 using MusicPlayerAPI.Helpers;
-using MusicPlayerAPI.Models.Dtos.Request;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
@@ -17,123 +17,77 @@ public class SongsController : ControllerBase
         _songService = songService;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        var result = await _songService.GetAll();
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
-
-        return Ok(result.Data);
-    }
-
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
-    {
-        var result = await _songService.GetById(id);
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
-
-        return Ok(result.Data);
-    }
-
     [HttpGet("{id:int}/stream")]
     public async Task<IActionResult> StreamSong(int id)
     {
-        var result = await _songService.GetById(id);
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
-        var song = result.Data;
-
-        if (string.IsNullOrEmpty(song?.AudioFilePath)) return NotFound("Audio file path is missing.");
-
-        var audioFilePath = FileHelper.GetFullPath(song.AudioFilePath);
-
-        var streamResult = _songService.Stream(audioFilePath);
-        if (streamResult.Status != 200) return StatusCode(streamResult.Status, streamResult.Message);
-
-        var fileStream = streamResult.Data;
-        if (fileStream == null) return NotFound("Audio file not found");
-
-        return File(fileStream, "audio/mpeg", enableRangeProcessing: true);
+        var streamResult = await _songService.Stream(id);
+        return File(streamResult, "audio/mpeg", enableRangeProcessing: true);
     }
 
     [HttpGet("{id:int}/cover")]
     public async Task<IActionResult> GetCoverImage(int id)
     {
-        var result = await _songService.GetById(id);
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
-        var song = result.Data;
-
-        if (string.IsNullOrEmpty(song?.CoverImagePath)) return NotFound("Cover image path is missing.");
-
-        var coverImagePath = FileHelper.GetFullPath(song.CoverImagePath);
-
-        if (!System.IO.File.Exists(coverImagePath)) return NotFound("Cover image not found.");
-
+        var coverImagePath = await _songService.GetCoverImage(id);
         return PhysicalFile(coverImagePath, "image/jpeg");
     }
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> UploadSong([FromForm] SongReqDto songDto, [FromForm] IFormFile audioFile, [FromForm] IFormFile? coverImageFile)
+    public async Task<IActionResult> UploadSong([FromForm] SongReqDto songDto)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _songService.Upload(songDto, audioFile, coverImageFile, userId);
-        return StatusCode(result.Status, result.Message);
+        await _songService.Upload(songDto, userId);
+        return StatusCode(201, "Song was successfully uploaded.");
     }
 
     [Authorize]
     [HttpPost("{id:int}/like")]
     public async Task<IActionResult> LikeSong(int id)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _songService.Like(id, userId);
-        return StatusCode(result.Status, result.Message);
+        await _songService.Like(id, userId);
+        return Ok("Song was successfully liked.");
     }
 
     [Authorize]
     [HttpPost("{id:int}/dislike")]
     public async Task<IActionResult> DislikeSong(int id)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _songService.Dislike(id, userId);
-        return StatusCode(result.Status, result.Message);
+        await _songService.Dislike(id, userId);
+        return Ok("Song was successfully disliked.");
     }
 
     [Authorize]
     [HttpPut("{id:int}/cover/remove")]
     public async Task<IActionResult> RemoveCoverImage(int id)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _songService.UpdateCoverImage(id, userId);
-        return StatusCode(result.Status, result.Message);
+        await _songService.UpdateCoverImage(id, userId);
+        return Ok("Song cover image was successfully removed.");
     }
 
     [Authorize]
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateSong(int id, [FromForm] SongReqDto songDto, [FromForm] IFormFile? audioFile, [FromForm] IFormFile? coverImageFile)
+    public async Task<IActionResult> UpdateSong(int id, [FromForm] SongReqDto songDto)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _songService.Update(id, songDto, audioFile, coverImageFile, userId);
-        return StatusCode(result.Status, result.Message);
+        await _songService.Update(id, songDto, userId);
+        return Ok("Song was successfully updated.");
     }
 
     [Authorize]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteSong(int id)
     {
-        var userIdClaim = User.FindFirst("Uid")?.Value;
-        if (!int.TryParse(userIdClaim, out int userId)) return Unauthorized("Invalid user ID in token.");
+        int userId = UserHelper.GetUserId(User);
 
-        var result = await _songService.Delete(id, userId);
-        return StatusCode(result.Status, result.Message);
+        await _songService.Delete(id, userId);
+        return Ok("Song was successfully deleted.");
     }
 }

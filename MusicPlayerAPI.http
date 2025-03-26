@@ -1,6 +1,0 @@
-@MusicPlayerAPI_HostAddress = http://localhost:5157
-
-# GET {{MusicPlayerAPI_HostAddress}}/weatherforecast/
-# Accept: application/json
-
-###

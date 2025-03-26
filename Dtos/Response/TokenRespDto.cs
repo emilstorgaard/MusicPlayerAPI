@@ -1,4 +1,4 @@
-﻿namespace MusicPlayerAPI.Models.Dtos.Response;
+﻿namespace MusicPlayerAPI.Dtos.Response;
 
 public class TokenRespDto
 {

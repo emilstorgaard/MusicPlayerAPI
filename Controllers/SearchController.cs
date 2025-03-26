@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using MusicPlayerAPI.Dtos.Response;
+using MusicPlayerAPI.Helpers;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
@@ -15,17 +17,11 @@ public class SearchController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> Search([FromQuery] string query)
+    public async Task<ActionResult<SearchRespDto>> Search([FromQuery] string query)
     {
-        var result = await _searchService.SearchAsync(query);
-        if (result.Status != 200) return StatusCode(result.Status, result.Message);
+        int userId = UserHelper.GetUserId(User);
 
-        var (playlists, songs) = result.Data;
-
-        return Ok(new
-        {
-            Playlists = playlists,
-            Songs = songs
-        });
+        var result = await _searchService.SearchAsync(query, userId);
+        return Ok(result);
     }
 }

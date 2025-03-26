@@ -1,10 +1,11 @@
-﻿namespace MusicPlayerAPI.Models.Entities;
+﻿namespace MusicPlayerAPI.Models;
 
 public class PlaylistSong
 {
     public int PlaylistId { get; set; }
     public int SongId { get; set; }
     public DateTime CreatedAtUtc { get; set; }
-    public required Playlist Playlist { get; set; }
-    public required Song Song { get; set; }
+    public Playlist Playlist { get; set; } = null!;
+    public Song Song { get; set; } = null!;
+
 }

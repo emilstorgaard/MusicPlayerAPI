@@ -1,40 +1,37 @@
-﻿using Microsoft.EntityFrameworkCore;
-using MusicPlayerAPI.Data;
+﻿using MusicPlayerAPI.Dtos.Request;
+using MusicPlayerAPI.Dtos.Response;
+using MusicPlayerAPI.Exceptions;
 using MusicPlayerAPI.Helpers;
 using MusicPlayerAPI.Mappers;
-using MusicPlayerAPI.Models.Dtos.Request;
-using MusicPlayerAPI.Models.Dtos.Response;
-using MusicPlayerAPI.Models.Entities;
+using MusicPlayerAPI.Models;
+using MusicPlayerAPI.Repositories.Interfaces;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Services;
 
 public class UserService : IUserService
 {
-    public readonly ApplicationDbContext _dbContext;
+    private readonly IUserRepository _userRepository;
 
-    public UserService(ApplicationDbContext dbContext)
+    public UserService(IUserRepository userRepository)
     {
-        _dbContext = dbContext;
+        _userRepository = userRepository;
     }
 
-    public async Task<StatusResult<List<UserRespDto>>> GetAll()
+    public async Task<List<UserRespDto>> GetAll()
     {
-        var users = await _dbContext.Users.ToListAsync();
-
-        if (!users.Any()) return StatusResult<List<UserRespDto>>.Failure(404, "No users found.");
+        var users = await _userRepository.GetAllUsers();
+        if (!users.Any()) throw new NotFoundException("No users found.");
 
         var userDtos = users.Select(UserMapper.MapToDto).ToList();
-        return StatusResult<List<UserRespDto>>.Success(userDtos, 200);
+        return userDtos;
     }
 
-    public async Task<User?> GetUserByEmailAsync(string email)
+    public async Task AddUser(UserReqDto userReqDto)
     {
-        return await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
-    }
+        var existingUser = await _userRepository.GetUserByEmail(userReqDto.Email);
+        if (existingUser != null) throw new ConflictException("User with this email already exists.");
 
-    public async Task<StatusResult<UserRespDto>> AddUser(UserReqDto userReqDto)
-    {
         var passwordHash = PasswordHelper.HashPassword(userReqDto.Password);
 
         var user = new User
@@ -45,9 +42,6 @@ public class UserService : IUserService
             UpdatedAtUtc = DateTime.UtcNow
         };
 
-        await _dbContext.Users.AddAsync(user);
-        await _dbContext.SaveChangesAsync();
-
-        return StatusResult<UserRespDto>.Success(UserMapper.MapToDto(user), 201);
+        await _userRepository.AddUser(user);
     }
 }
