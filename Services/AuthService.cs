@@ -32,7 +32,7 @@ public class AuthService : IAuthService
         {
             Subject = new ClaimsIdentity(new[]
             {
-            new Claim("Uid", user.Id.ToString()),
+            new Claim("uid", user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email)
         }),
             Expires = DateTime.UtcNow.AddHours(_settings.JwtExpiryHours),
