@@ -18,6 +18,20 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Ensure that when a User is deleted, their Playlists are also deleted
+        modelBuilder.Entity<Playlist>()
+            .HasOne(p => p.User)
+            .WithMany(u => u.Playlists)
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Cascade); // Deletes playlists when user is deleted
+
+        // Ensure that when a User is deleted, their Songs are also deleted
+        modelBuilder.Entity<Song>()
+            .HasOne(s => s.User)
+            .WithMany(u => u.Songs)
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade); // Deletes songs when user is deleted
+
         // Configure the many-to-many relationship between Song and Playlist
         modelBuilder.Entity<PlaylistSong>()
             .HasKey(ps => new { ps.PlaylistId, ps.SongId });

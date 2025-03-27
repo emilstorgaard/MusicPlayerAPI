@@ -165,6 +165,7 @@ public class PlaylistService : IPlaylistService
 
         FileHelper.DeleteFile(playlist.CoverImagePath);
 
+        await _playlistRepository.DeletePlaylistSongs(id);
         await _playlistRepository.DeletePlaylist(playlist);
     }
 

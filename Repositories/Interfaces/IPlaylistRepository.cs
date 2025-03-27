@@ -15,6 +15,8 @@ public interface IPlaylistRepository
     Task DislikePlaylist(LikedPlaylist likedPlaylist);
     Task UpdatePlaylist(Playlist playlist);
     Task DeletePlaylist(Playlist playlist);
+    Task DeletePlaylistSongs(int playlistId);
+    Task DeleteLikedPlaylists(int userId);
     Task<bool> IsSongInPlaylist(int playlistId, int songId);
     Task AddSongToPlaylist(PlaylistSong playlistSong);
     Task<List<Song>> GetSongsByPlaylistId(int playlistId);

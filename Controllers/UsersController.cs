@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MusicPlayerAPI.Dtos.Request;
+using MusicPlayerAPI.Helpers;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
@@ -29,5 +30,15 @@ public class UsersController : ControllerBase
     {
         await _userService.AddUser(userReqDto);
         return Ok("User registered successfully.");
+    }
+
+    [Authorize]
+    [HttpDelete]
+    public async Task<IActionResult> Delete()
+    {
+        int userId = UserHelper.GetUserId(User);
+
+        await _userService.Delete(userId);
+        return Ok("User was successfully deleted");
     }
 }

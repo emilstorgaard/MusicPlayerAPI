@@ -86,4 +86,11 @@ public class SongRepository : ISongRepository
         _dbContext.Songs.Remove(song);
         await _dbContext.SaveChangesAsync();
     }
+
+    public async Task DeleteLikedSongs(int userId)
+    {
+        var likedSongs = _dbContext.LikedSongs.Where(ls => ls.UserId == userId);
+        _dbContext.LikedSongs.RemoveRange(likedSongs);
+        await _dbContext.SaveChangesAsync();
+    }
 }

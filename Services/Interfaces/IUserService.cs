@@ -7,4 +7,5 @@ public interface IUserService
 {
     Task<List<UserRespDto>> GetAll();
     Task AddUser(UserReqDto userReqDto);
+    Task Delete(int userId);
 }

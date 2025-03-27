@@ -81,6 +81,20 @@ public class PlaylistRepository : IPlaylistRepository
         await _dbContext.SaveChangesAsync();
     }
 
+    public async Task DeletePlaylistSongs(int playlistId)
+    {
+        var playlistSongs = _dbContext.PlaylistSongs.Where(ps => ps.PlaylistId == playlistId);
+        _dbContext.PlaylistSongs.RemoveRange(playlistSongs);
+        await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task DeleteLikedPlaylists(int userId)
+    {
+        var likedPlaylists = _dbContext.LikedPlaylists.Where(lp => lp.UserId == userId);
+        _dbContext.LikedPlaylists.RemoveRange(likedPlaylists);
+        await _dbContext.SaveChangesAsync();
+    }
+
     public async Task<bool> IsSongInPlaylist(int playlistId, int songId)
     {
         return await _dbContext.PlaylistSongs
@@ -93,15 +107,15 @@ public class PlaylistRepository : IPlaylistRepository
         await _dbContext.SaveChangesAsync();        
     }
 
-public async Task<List<Song>> GetSongsByPlaylistId(int playlistId)
-{
-    return await _dbContext.PlaylistSongs
-        .AsNoTracking()
-        .Where(ps => ps.PlaylistId == playlistId)
-        .Include(ps => ps.Song)
-        .Select(ps => ps.Song)
-        .ToListAsync();
-}
+    public async Task<List<Song>> GetSongsByPlaylistId(int playlistId)
+    {
+        return await _dbContext.PlaylistSongs
+            .AsNoTracking()
+            .Where(ps => ps.PlaylistId == playlistId)
+            .Include(ps => ps.Song)
+            .Select(ps => ps.Song)
+            .ToListAsync();
+    }
 
     public async Task<PlaylistSong?> GetPlaylistSong(int playlistId, int songId)
     {

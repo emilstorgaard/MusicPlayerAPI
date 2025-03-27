@@ -12,10 +12,14 @@ namespace MusicPlayerAPI.Services;
 public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IPlaylistRepository _playlistRepository;
+    private readonly ISongRepository _songRepository;
 
-    public UserService(IUserRepository userRepository)
+    public UserService(IUserRepository userRepository, IPlaylistRepository playlistRepository, ISongRepository songRepository)
     {
         _userRepository = userRepository;
+        _playlistRepository = playlistRepository;
+        _songRepository = songRepository;
     }
 
     public async Task<List<UserRespDto>> GetAll()
@@ -43,5 +47,15 @@ public class UserService : IUserService
         };
 
         await _userRepository.AddUser(user);
+    }
+
+    public async Task Delete(int userId)
+    {
+        var user = await _userRepository.GetUserById(userId);
+        if (user == null) throw new NotFoundException("User not found.");
+
+        await _playlistRepository.DeleteLikedPlaylists(userId);
+        await _songRepository.DeleteLikedSongs(userId);
+        await _userRepository.Delete(user);
     }
 }

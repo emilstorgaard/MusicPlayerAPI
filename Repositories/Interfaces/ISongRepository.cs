@@ -15,5 +15,5 @@ public interface ISongRepository
     Task DislikeSong(LikedSong likedSong);
     Task UpdateSong(Song song);
     Task DeleteSong(Song song);
-
+    Task DeleteLikedSongs(int userId);
 }
