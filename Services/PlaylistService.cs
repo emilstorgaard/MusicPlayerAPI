@@ -58,7 +58,7 @@ public class PlaylistService : IPlaylistService
         if (string.IsNullOrEmpty(playlist?.CoverImagePath)) throw new NotFoundException("Cover image path is missing.");
         var coverImagePath = FileHelper.GetFullPath(playlist.CoverImagePath);
 
-        if (!System.IO.File.Exists(coverImagePath)) throw new NotFoundException("Cover image not found.");
+        if (!System.IO.File.Exists(coverImagePath)) throw new NotFoundException($"Cover image not found on path: {coverImagePath}.");
 
         return coverImagePath;
     }
