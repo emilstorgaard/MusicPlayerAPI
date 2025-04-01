@@ -31,6 +31,15 @@ public class UserService : IUserService
         return userDtos;
     }
 
+    public async Task<UserRespDto> GetUser(int userId)
+    {
+        var user = await _userRepository.GetUserById(userId);
+        if (user == null) throw new NotFoundException("User not found.");
+
+        var userDto = UserMapper.MapToDto(user);
+        return userDto;
+    }
+
     public async Task AddUser(UserReqDto userReqDto)
     {
         var existingUser = await _userRepository.GetUserByEmail(userReqDto.Email);
