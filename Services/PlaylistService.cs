@@ -50,13 +50,9 @@ public class PlaylistService : IPlaylistService
         return playlistDto;
     }
 
-    public async Task<string> GetCoverImagePath(int id)
+    public string GetCoverImagePath(string audioPath)
     {
-        var playlist = await _playlistRepository.GetPlaylistById(id);
-        if (playlist == null) throw new NotFoundException("Playlist not found.");
-
-        if (string.IsNullOrEmpty(playlist?.CoverImagePath)) throw new NotFoundException("Cover image path is missing.");
-        var coverImagePath = FileHelper.GetFullPath(playlist.CoverImagePath);
+        var coverImagePath = FileHelper.GetFullPath(audioPath);
 
         if (!System.IO.File.Exists(coverImagePath)) throw new NotFoundException($"Cover image not found on path: {coverImagePath}.");
 

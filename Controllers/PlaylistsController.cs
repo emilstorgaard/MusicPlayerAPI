@@ -37,10 +37,10 @@ public class PlaylistsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("{id:int}/cover")]
-    public async Task<IActionResult> GetCoverImageById(int id)
+    [HttpGet("cover/{*audioPath}")]
+    public IActionResult GetCoverImageById(string audioPath)
     {
-        var result = await _playlistService.GetCoverImagePath(id);
+        var result = _playlistService.GetCoverImagePath(audioPath);
         return PhysicalFile(result, "image/jpeg");
     }
 
