@@ -7,7 +7,7 @@ public interface IPlaylistService
 {
     Task<List<PlaylistRespDto>> GetAllByUserId(int userId);
     Task<PlaylistRespDto> GetById(int id, int userId);
-    string GetCoverImagePath(string audioPath);
+    string GetCoverImagePath(string imagePath);
     Task Add(PlaylistReqDto playlistDto, int userId);
     Task Like(int playlistId, int userId);
     Task Dislike(int playlistId, int userId);

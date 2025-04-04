@@ -50,9 +50,9 @@ public class PlaylistService : IPlaylistService
         return playlistDto;
     }
 
-    public string GetCoverImagePath(string audioPath)
+    public string GetCoverImagePath(string imagePath)
     {
-        var coverImagePath = FileHelper.GetFullPath(audioPath);
+        var coverImagePath = FileHelper.GetFullPath(imagePath);
 
         if (!System.IO.File.Exists(coverImagePath)) throw new NotFoundException($"Cover image not found on path: {coverImagePath}.");
 

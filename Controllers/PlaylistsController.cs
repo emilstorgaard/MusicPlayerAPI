@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MusicPlayerAPI.Dtos.Request;
 using MusicPlayerAPI.Dtos.Response;
 using MusicPlayerAPI.Helpers;
+using MusicPlayerAPI.Services;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;
@@ -37,11 +38,11 @@ public class PlaylistsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("cover/{*audioPath}")]
-    public IActionResult GetCoverImageById(string audioPath)
+    [HttpGet("cover/{*imagePath}")]
+    public IActionResult GetCoverImageById(string imagePath)
     {
-        var result = _playlistService.GetCoverImagePath(audioPath);
-        return PhysicalFile(result, "image/jpeg");
+        var coverImagePath = _playlistService.GetCoverImagePath(imagePath);
+        return PhysicalFile(coverImagePath, "image/jpeg");
     }
 
     [Authorize]
