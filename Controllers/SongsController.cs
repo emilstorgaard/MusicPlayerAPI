@@ -25,9 +25,9 @@ public class SongsController : ControllerBase
     }
 
     [HttpGet("{id:int}/cover")]
-    public async Task<IActionResult> GetCoverImage(int id)
+    public IActionResult GetCoverImage(string imagePath)
     {
-        var coverImagePath = await _songService.GetCoverImage(id);
+        var coverImagePath = _songService.GetCoverImage(imagePath);
         return PhysicalFile(coverImagePath, "image/jpeg");
     }
 

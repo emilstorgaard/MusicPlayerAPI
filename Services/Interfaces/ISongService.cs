@@ -5,7 +5,7 @@ namespace MusicPlayerAPI.Services.Interfaces;
 public interface ISongService
 {
     Task<FileStream> Stream(int id);
-    Task<string> GetCoverImage(int id);
+    string GetCoverImage(string imagePath);
     Task Upload(SongReqDto songDto, int userId);
     Task Like(int songId, int userId);
     Task Dislike(int songId, int userId);

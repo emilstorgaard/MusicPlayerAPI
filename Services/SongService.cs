@@ -37,14 +37,9 @@ public class SongService : ISongService
         return fileStream;
     }
 
-    public async Task<string> GetCoverImage(int id)
+    public string GetCoverImage(string imagePath)
     {
-        var song = await _songRepository.GetSongById(id);
-        if (song == null) throw new NotFoundException("Song not found.");
-
-        if (string.IsNullOrEmpty(song?.CoverImagePath)) throw new NotFoundException("Cover image path is missing.");
-
-        var coverImagePath = FileHelper.GetFullPath(song.CoverImagePath);
+        var coverImagePath = FileHelper.GetFullPath(imagePath);
 
         if (!System.IO.File.Exists(coverImagePath)) throw new NotFoundException("Cover image not found.");
 
