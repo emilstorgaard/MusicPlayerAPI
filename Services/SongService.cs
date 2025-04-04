@@ -37,9 +37,9 @@ public class SongService : ISongService
         return fileStream;
     }
 
-    public string GetCoverImage(string imagePath)
+    public string GetCoverImage(string imageFile)
     {
-        var coverImagePath = FileHelper.GetFullPath(imagePath);
+        var coverImagePath = FileHelper.GetFullPath(_settings.UploadImageFolderPath + "/" + imageFile);
 
         if (!System.IO.File.Exists(coverImagePath)) throw new NotFoundException("Cover image not found.");
 

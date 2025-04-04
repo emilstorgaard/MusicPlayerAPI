@@ -24,10 +24,10 @@ public class SongsController : ControllerBase
         return File(streamResult, "audio/mpeg", enableRangeProcessing: true);
     }
 
-    [HttpGet("{id:int}/cover")]
-    public IActionResult GetCoverImage(string imagePath)
+    [HttpGet("{imageFile:string}/cover")]
+    public IActionResult GetCoverImage(string imageFile)
     {
-        var coverImagePath = _songService.GetCoverImage(imagePath);
+        var coverImagePath = _songService.GetCoverImage(imageFile);
         return PhysicalFile(coverImagePath, "image/jpeg");
     }
 
