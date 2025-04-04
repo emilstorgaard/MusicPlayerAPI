@@ -5,14 +5,14 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using MusicPlayerAPI.Data;
+using MusicPlayerAPI.Database;
 
 #nullable disable
 
 namespace MusicPlayerAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250221154434_InitialCreate")]
+    [Migration("20250327074003_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -25,7 +25,7 @@ namespace MusicPlayerAPI.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.LikedPlaylist", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.LikedPlaylist", b =>
                 {
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -45,7 +45,7 @@ namespace MusicPlayerAPI.Migrations
                     b.ToTable("LikedPlaylists");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.LikedSong", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.LikedSong", b =>
                 {
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -65,7 +65,7 @@ namespace MusicPlayerAPI.Migrations
                     b.ToTable("LikedSongs");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.Playlist", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.Playlist", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -101,7 +101,7 @@ namespace MusicPlayerAPI.Migrations
                     b.ToTable("Playlists");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.PlaylistSong", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.PlaylistSong", b =>
                 {
                     b.Property<int>("PlaylistId")
                         .HasColumnType("int");
@@ -121,7 +121,7 @@ namespace MusicPlayerAPI.Migrations
                     b.ToTable("PlaylistSongs");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.Song", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.Song", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -165,7 +165,7 @@ namespace MusicPlayerAPI.Migrations
                     b.ToTable("Songs");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.User", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -196,15 +196,15 @@ namespace MusicPlayerAPI.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.LikedPlaylist", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.LikedPlaylist", b =>
                 {
-                    b.HasOne("MusicPlayerAPI.Models.Entities.Playlist", "Playlist")
+                    b.HasOne("MusicPlayerAPI.Models.Playlist", "Playlist")
                         .WithMany("LikedPlaylists")
                         .HasForeignKey("PlaylistId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MusicPlayerAPI.Models.Entities.User", "User")
+                    b.HasOne("MusicPlayerAPI.Models.User", "User")
                         .WithMany("LikedPlaylists")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
@@ -215,15 +215,15 @@ namespace MusicPlayerAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.LikedSong", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.LikedSong", b =>
                 {
-                    b.HasOne("MusicPlayerAPI.Models.Entities.Song", "Song")
+                    b.HasOne("MusicPlayerAPI.Models.Song", "Song")
                         .WithMany("LikedSongs")
                         .HasForeignKey("SongId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MusicPlayerAPI.Models.Entities.User", "User")
+                    b.HasOne("MusicPlayerAPI.Models.User", "User")
                         .WithMany("LikedSongs")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
@@ -234,9 +234,9 @@ namespace MusicPlayerAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.Playlist", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.Playlist", b =>
                 {
-                    b.HasOne("MusicPlayerAPI.Models.Entities.User", "User")
+                    b.HasOne("MusicPlayerAPI.Models.User", "User")
                         .WithMany("Playlists")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -245,15 +245,15 @@ namespace MusicPlayerAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.PlaylistSong", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.PlaylistSong", b =>
                 {
-                    b.HasOne("MusicPlayerAPI.Models.Entities.Playlist", "Playlist")
+                    b.HasOne("MusicPlayerAPI.Models.Playlist", "Playlist")
                         .WithMany("PlaylistSongs")
                         .HasForeignKey("PlaylistId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("MusicPlayerAPI.Models.Entities.Song", "Song")
+                    b.HasOne("MusicPlayerAPI.Models.Song", "Song")
                         .WithMany("PlaylistSongs")
                         .HasForeignKey("SongId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -264,9 +264,9 @@ namespace MusicPlayerAPI.Migrations
                     b.Navigation("Song");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.Song", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.Song", b =>
                 {
-                    b.HasOne("MusicPlayerAPI.Models.Entities.User", "User")
+                    b.HasOne("MusicPlayerAPI.Models.User", "User")
                         .WithMany("Songs")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -275,21 +275,21 @@ namespace MusicPlayerAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.Playlist", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.Playlist", b =>
                 {
                     b.Navigation("LikedPlaylists");
 
                     b.Navigation("PlaylistSongs");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.Song", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.Song", b =>
                 {
                     b.Navigation("LikedSongs");
 
                     b.Navigation("PlaylistSongs");
                 });
 
-            modelBuilder.Entity("MusicPlayerAPI.Models.Entities.User", b =>
+            modelBuilder.Entity("MusicPlayerAPI.Models.User", b =>
                 {
                     b.Navigation("LikedPlaylists");
 
