@@ -6,7 +6,7 @@ public interface IPlaylistRepository
 {
     Task<List<Playlist>> GetAllPlaylistsByUserId(int userId);
     Task<Playlist?> GetPlaylistById(int id);
-    Task<bool> PlaylistExists(string name, int userId);
+    Task<Playlist?> GetExistingPlaylist(string name, int userId);
     Task AddPlaylist(Playlist playlist);
     Task<LikedPlaylist?> GetLikedPlaylistByUser(int playlistId, int userId);
     Task<List<int>> GetLikedPlaylistIdsByUser(int userId);

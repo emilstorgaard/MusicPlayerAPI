@@ -54,8 +54,8 @@ public class SongService : ISongService
         var user = await _userRepository.GetUserById(userId);
         if (user == null) throw new NotFoundException("User not found.");
 
-        var existingSong = await _songRepository.SongExists(songDto.Title, songDto.Artist);
-        if (existingSong) throw new ConflictException("A song with the same title and artist already exists.");
+        var existingSong = await _songRepository.GetExsistingSong(songDto.Title, songDto.Artist);
+        if (existingSong != null) throw new ConflictException("A song with the same title and artist already exists.");
 
         var audioFilePath = FileHelper.SaveFile(songDto.AudioFile, _settings.UploadAudioFolderPath);
         var coverImagePath = songDto.CoverImageFile != null && FileHelper.IsValidFile(songDto.CoverImageFile, _settings.AllowedImageExtensions)
@@ -129,8 +129,8 @@ public class SongService : ISongService
         if (song == null) throw new NotFoundException("Song was not found.");
         if (song.UserId != userId) throw new UnauthorizedException("You are not allowed to update this song.");
 
-        var existingSong = await _songRepository.SongExists(songDto.Title, songDto.Artist);
-        if (existingSong) throw new NotFoundException("A song with the same title and artist already exists.");
+        var existingSong = await _songRepository.GetExsistingSong(songDto.Title, songDto.Artist);
+        if (existingSong != null && existingSong.Id != id) throw new NotFoundException("A song with the same title and artist already exists.");
 
         if (songDto.CoverImageFile != null && FileHelper.IsValidFile(songDto.CoverImageFile, _settings.AllowedImageExtensions))
         {

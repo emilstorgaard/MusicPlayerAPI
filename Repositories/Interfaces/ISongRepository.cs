@@ -5,7 +5,7 @@ namespace MusicPlayerAPI.Repositories.Interfaces;
 public interface ISongRepository
 {
     Task<Song?> GetSongById(int id);
-    Task<bool> SongExists(string title, string artist);
+    Task<Song?> GetExsistingSong(string title, string artist);
     Task AddSong(Song song);
     Task<LikedSong?> GetLikedSongByUser(int songId, int userId);
     Task<List<int>> GetLikedSongIdsByUser(int userId);

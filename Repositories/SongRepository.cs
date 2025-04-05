@@ -19,9 +19,9 @@ public class SongRepository : ISongRepository
         return await _dbContext.Songs.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
     }
 
-    public async Task<bool> SongExists(string title, string artist)
+    public async Task<Song?> GetExsistingSong(string title, string artist)
     {
-        return await _dbContext.Songs.AnyAsync(s => s.Title == title && s.Artist == artist);
+        return await _dbContext.Songs.AsNoTracking().FirstOrDefaultAsync(s => s.Title == title && s.Artist == artist);
     }
 
     public async Task AddSong(Song song)

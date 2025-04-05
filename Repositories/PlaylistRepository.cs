@@ -24,9 +24,9 @@ public class PlaylistRepository : IPlaylistRepository
         return await _dbContext.Playlists.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
     }
 
-    public async Task<bool> PlaylistExists(string name, int userId)
+    public async Task<Playlist?> GetExistingPlaylist(string name, int userId)
     {
-        return await _dbContext.Playlists.AnyAsync(p => p.Name == name && p.User.Id == userId);
+        return await _dbContext.Playlists.AsNoTracking().FirstOrDefaultAsync(p => p.Name == name && p.User.Id == userId);
     }
 
     public async Task AddPlaylist(Playlist playlist)

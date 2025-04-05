@@ -66,8 +66,8 @@ public class PlaylistService : IPlaylistService
         var user = await _userRepository.GetUserById(userId);
         if (user == null) throw new UnauthorizedException("Invalid user ID.");
 
-        var existingPlaylist = await _playlistRepository.PlaylistExists(playlistDto.Name, userId);
-        if (existingPlaylist) throw new ConflictException("You already have a playlist with the same name.");
+        var existingPlaylist = await _playlistRepository.GetExistingPlaylist(playlistDto.Name, userId);
+        if (existingPlaylist != null) throw new ConflictException("You already have a playlist with the same name.");
 
         var filePath = playlistDto.CoverImageFile != null && FileHelper.IsValidFile(playlistDto.CoverImageFile, _settings.AllowedImageExtensions)
             ? FileHelper.SaveFile(playlistDto.CoverImageFile, _settings.UploadImageFolderPath)
@@ -138,8 +138,8 @@ public class PlaylistService : IPlaylistService
         if (playlist == null) throw new NotFoundException("Playlist was not found.");
         if (playlist.UserId != userId) throw new UnauthorizedException("You are not allowed to update this playlist.");
 
-        var existingPlaylist = await _playlistRepository.PlaylistExists(playlistDto.Name, userId);
-        if (existingPlaylist) throw new ConflictException("You already have a playlist with the same name.");
+        var existingPlaylist = await _playlistRepository.GetExistingPlaylist(playlistDto.Name, userId);
+        if (existingPlaylist != null && existingPlaylist.Id != id) throw new ConflictException("You already have a playlist with the same name.");
 
         if (playlistDto.CoverImageFile != null && FileHelper.IsValidFile(playlistDto.CoverImageFile, _settings.AllowedImageExtensions))
         {
