@@ -7,6 +7,7 @@ public class Song
     public int Id { get; set; }
     public required string Title { get; set; }
     public required string Artist { get; set; }
+    public required TimeSpan Duration { get; set; }
     public required string AudioFilePath { get; set; }
     public required string CoverImagePath { get; set; }
     public int UserId { get; set; }

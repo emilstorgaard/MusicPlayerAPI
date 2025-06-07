@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using MusicPlayerAPI.Dtos.Request;
 using MusicPlayerAPI.Dtos.Response;
 using MusicPlayerAPI.Helpers;
-using MusicPlayerAPI.Services;
 using MusicPlayerAPI.Services.Interfaces;
 
 namespace MusicPlayerAPI.Controllers;

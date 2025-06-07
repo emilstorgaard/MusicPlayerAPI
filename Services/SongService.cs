@@ -62,10 +62,13 @@ public class SongService : ISongService
             ? FileHelper.SaveFile(songDto.CoverImageFile, _settings.UploadImageFolderPath)
             : FileHelper.GetDefaultCoverImagePath(_settings.UploadImageFolderPath);
 
+        var duration = FileHelper.GetAudioDuration(audioFilePath);
+
         var song = new Song
         {
             Title = songDto.Title,
             Artist = songDto.Artist,
+            Duration = duration,
             AudioFilePath = audioFilePath,
             CoverImagePath = coverImagePath,
             UserId = userId,

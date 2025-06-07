@@ -12,6 +12,7 @@ public static class SongMapper
             Id = song.Id,
             Title = song.Title,
             Artist = song.Artist,
+            Duration = song.Duration,
             AudioFilePath = song.AudioFilePath,
             CoverImagePath = song.CoverImagePath,
             IsLiked = isLiked,
