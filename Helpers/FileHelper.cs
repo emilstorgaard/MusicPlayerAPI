@@ -1,5 +1,4 @@
-﻿using NAudio.Wave;
-namespace MusicPlayerAPI.Helpers;
+﻿namespace MusicPlayerAPI.Helpers;
 
 public static class FileHelper
 {
@@ -39,13 +38,5 @@ public static class FileHelper
     public static string GetFullPath(string relativePath)
     {
         return Path.Combine(Directory.GetCurrentDirectory(), relativePath);
-    }
-
-    public static TimeSpan GetAudioDuration(string filePath)
-    {
-        using (var reader = new AudioFileReader(filePath))
-        {
-            return reader.TotalTime;
-        }
     }
 }

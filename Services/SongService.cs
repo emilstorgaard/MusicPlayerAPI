@@ -62,13 +62,11 @@ public class SongService : ISongService
             ? FileHelper.SaveFile(songDto.CoverImageFile, _settings.UploadImageFolderPath)
             : FileHelper.GetDefaultCoverImagePath(_settings.UploadImageFolderPath);
 
-        var duration = FileHelper.GetAudioDuration(audioFilePath);
-
         var song = new Song
         {
             Title = songDto.Title,
             Artist = songDto.Artist,
-            Duration = duration,
+            Duration = songDto.Duration,
             AudioFilePath = audioFilePath,
             CoverImagePath = coverImagePath,
             UserId = userId,
@@ -149,6 +147,7 @@ public class SongService : ISongService
 
         song.Title = songDto.Title;
         song.Artist = songDto.Artist;
+        song.Duration = songDto.Duration;
         song.UpdatedAtUtc = DateTime.UtcNow;
 
         await _songRepository.UpdateSong(song);
