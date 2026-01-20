@@ -1,4 +1,4 @@
-﻿namespace MusicPlayerAPI.Models;
+﻿namespace MusicPlayerAPI.Entities;
 
 public class LikedSong
 {

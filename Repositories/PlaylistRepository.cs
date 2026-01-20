@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MusicPlayerAPI.Database;
-using MusicPlayerAPI.Models;
+using MusicPlayerAPI.Data;
+using MusicPlayerAPI.Entities;
 using MusicPlayerAPI.Repositories.Interfaces;
 
 namespace MusicPlayerAPI.Repositories;

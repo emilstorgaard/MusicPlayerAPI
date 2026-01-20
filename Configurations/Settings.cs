@@ -1,4 +1,4 @@
-﻿namespace MusicPlayerAPI;
+﻿namespace MusicPlayerAPI.Configurations;
 
 public class Settings
 {

@@ -3,7 +3,7 @@ using MusicPlayerAPI.Dtos.Response;
 using MusicPlayerAPI.Exceptions;
 using MusicPlayerAPI.Helpers;
 using MusicPlayerAPI.Mappers;
-using MusicPlayerAPI.Models;
+using MusicPlayerAPI.Entities;
 using MusicPlayerAPI.Repositories.Interfaces;
 using MusicPlayerAPI.Services.Interfaces;
 

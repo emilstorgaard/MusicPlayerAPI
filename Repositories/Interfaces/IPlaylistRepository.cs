@@ -1,4 +1,4 @@
-﻿using MusicPlayerAPI.Models;
+﻿using MusicPlayerAPI.Entities;
 
 namespace MusicPlayerAPI.Repositories.Interfaces;
 

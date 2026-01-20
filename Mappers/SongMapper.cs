@@ -1,5 +1,5 @@
 ﻿using MusicPlayerAPI.Dtos.Response;
-using MusicPlayerAPI.Models;
+using MusicPlayerAPI.Entities;
 
 namespace MusicPlayerAPI.Mappers;
 

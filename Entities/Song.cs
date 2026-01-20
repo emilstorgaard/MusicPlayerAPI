@@ -1,11 +1,14 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace MusicPlayerAPI.Models;
+namespace MusicPlayerAPI.Entities;
 
-public class Playlist
+public class Song
 {
     public int Id { get; set; }
-    public required string Name { get; set; }
+    public required string Title { get; set; }
+    public required string Artist { get; set; }
+    public required TimeSpan Duration { get; set; }
+    public required string AudioFilePath { get; set; }
     public required string CoverImagePath { get; set; }
     public int UserId { get; set; }
     public DateTime CreatedAtUtc { get; set; }
@@ -16,5 +19,5 @@ public class Playlist
     public ICollection<PlaylistSong> PlaylistSongs { get; set; } = new List<PlaylistSong>();
 
     [JsonIgnore]
-    public ICollection<LikedPlaylist> LikedPlaylists { get; set; } = new List<LikedPlaylist>();
+    public ICollection<LikedSong> LikedSongs { get; set; } = new List<LikedSong>();
 }

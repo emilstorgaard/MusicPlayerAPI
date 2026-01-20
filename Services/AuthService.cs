@@ -1,4 +1,5 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using MusicPlayerAPI.Configurations;
 using MusicPlayerAPI.Dtos.Response;
 using MusicPlayerAPI.Exceptions;
 using MusicPlayerAPI.Helpers;
@@ -28,14 +29,17 @@ public class AuthService : IAuthService
 
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_settings.JwtSecret);
+
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email)
+        };
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-            new Claim("uid", user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email)
-        }),
-            //Expires = DateTime.UtcNow.AddHours(_settings.JwtExpiryHours), Do not expire
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddHours(_settings.JwtExpiryHours),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 

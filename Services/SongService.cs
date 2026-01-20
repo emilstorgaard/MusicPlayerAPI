@@ -1,9 +1,10 @@
 ﻿using MusicPlayerAPI.Dtos.Request;
 using MusicPlayerAPI.Exceptions;
 using MusicPlayerAPI.Helpers;
-using MusicPlayerAPI.Models;
+using MusicPlayerAPI.Entities;
 using MusicPlayerAPI.Repositories.Interfaces;
 using MusicPlayerAPI.Services.Interfaces;
+using MusicPlayerAPI.Configurations;
 
 namespace MusicPlayerAPI.Services;
 

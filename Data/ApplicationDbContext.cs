@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MusicPlayerAPI.Models;
+using MusicPlayerAPI.Entities;
 
-namespace MusicPlayerAPI.Database;
+namespace MusicPlayerAPI.Data;
 
 public class ApplicationDbContext : DbContext
 {
