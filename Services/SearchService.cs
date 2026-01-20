@@ -19,9 +19,9 @@ public class SearchService : ISearchService
         _songRepository = songRepository;
     }
 
-    private bool IsValidQuery(string query, out string errorMessage)
+    private bool IsValidQuery(string q, out string errorMessage)
     {
-        if (string.IsNullOrWhiteSpace(query))
+        if (string.IsNullOrWhiteSpace(q))
         {
             errorMessage = "Search query cannot be empty.";
             return false;
@@ -31,20 +31,20 @@ public class SearchService : ISearchService
         return true;
     }
 
-    public async Task<SearchRespDto> SearchAsync(string query, int userId)
+    public async Task<SearchRespDto> SearchAsync(string q, int userId)
     {
-        if (!IsValidQuery(query, out var errorMessage)) throw new BadRequestException($"Invalid search: {errorMessage}");
+        if (!IsValidQuery(q, out var errorMessage)) throw new BadRequestException($"Invalid search: {errorMessage}");
 
-        query = query.ToLower();
+        q = q.ToLower();
 
-        var playlists = await _searchRepository.GetPlaylistsBySearch(query);
+        var playlists = await _searchRepository.GetPlaylistsBySearch(q);
 
         var likedPlaylistIds = await _playlistRepository.GetLikedPlaylistIdsByUser(userId);
         var playlistsDto =  playlists.Select(playlist =>
             PlaylistMapper.MapToDto(playlist, likedPlaylistIds.Contains(playlist.Id))
         ).ToList();
 
-        var songs = await _searchRepository.GetSongsBySearch(query);
+        var songs = await _searchRepository.GetSongsBySearch(q);
 
         var likedSongIds = await _songRepository.GetLikedSongIdsByUser(userId);
         var songsDto = songs.Select(song =>

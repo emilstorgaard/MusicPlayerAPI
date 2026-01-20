@@ -4,5 +4,5 @@ namespace MusicPlayerAPI.Services.Interfaces;
 
 public interface ISearchService
 {
-    Task<SearchRespDto> SearchAsync(string query, int userId);
+    Task<SearchRespDto> SearchAsync(string q, int userId);
 }

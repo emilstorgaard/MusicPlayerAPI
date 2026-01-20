@@ -17,11 +17,11 @@ public class SearchController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<SearchRespDto>> Search([FromQuery] string query)
+    public async Task<ActionResult<SearchRespDto>> Search([FromQuery] string q)
     {
         int userId = UserHelper.GetUserId(User);
 
-        var result = await _searchService.SearchAsync(query, userId);
+        var result = await _searchService.SearchAsync(q, userId);
         return Ok(result);
     }
 }

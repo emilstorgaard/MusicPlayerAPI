@@ -30,8 +30,6 @@ public class PlaylistService : IPlaylistService
     public async Task<List<PlaylistRespDto>> GetAllByUserId(int userId)
     {
         var playlists = await _playlistRepository.GetAllPlaylistsByUserId(userId);
-        if (!playlists.Any()) throw new NotFoundException("No playlists found for user.");
-
         var likedPlaylistIds = await _playlistRepository.GetLikedPlaylistIdsByUser(userId);
 
         return playlists.Select(playlist =>

@@ -35,7 +35,7 @@ public class AuthService : IAuthService
             new Claim("uid", user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email)
         }),
-            Expires = DateTime.UtcNow.AddHours(_settings.JwtExpiryHours),
+            //Expires = DateTime.UtcNow.AddHours(_settings.JwtExpiryHours), Do not expire
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 
