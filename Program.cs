@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using MusicPlayerAPI;
+using MusicPlayerAPI.Configurations;
 using MusicPlayerAPI.Data;
 using MusicPlayerAPI.Middleware;
 using MusicPlayerAPI.Repositories;
