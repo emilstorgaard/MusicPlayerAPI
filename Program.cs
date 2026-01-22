@@ -66,6 +66,7 @@ public class Program
         builder.Services.AddScoped<ISearchService, SearchService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<ITokenService, JwtTokenService>();
 
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<ISongRepository, SongRepository>();

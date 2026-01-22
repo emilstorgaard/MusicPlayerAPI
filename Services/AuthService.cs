@@ -1,25 +1,21 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using MusicPlayerAPI.Configurations;
+﻿using MusicPlayerAPI.Configurations;
 using MusicPlayerAPI.Dtos.Response;
 using MusicPlayerAPI.Exceptions;
 using MusicPlayerAPI.Helpers;
 using MusicPlayerAPI.Repositories.Interfaces;
 using MusicPlayerAPI.Services.Interfaces;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace MusicPlayerAPI.Services;
 
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
-    private readonly Settings _settings;
+    private readonly ITokenService _tokenService;
 
-    public AuthService(Settings settings, IUserRepository userRepository)
+    public AuthService(IUserRepository userRepository, ITokenService tokenService)
     {
-        _settings = settings;
         _userRepository = userRepository;
+        _tokenService = tokenService;
     }
 
     public async Task<TokenRespDto> Login(string email, string password)
@@ -27,28 +23,11 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetUserByEmail(email);
         if (user == null || !PasswordHelper.VerifyPassword(password, user.PasswordHash)) throw new UnauthorizedException("Invalid email or password.");
 
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_settings.JwtSecret);
-
-        var claims = new[]
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email)
-        };
-
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddHours(_settings.JwtExpiryHours),
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-        };
-
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        var tokenString = tokenHandler.WriteToken(token);
+        var token = _tokenService.GenerateToken(user);
 
         var tokenRespDto = new TokenRespDto
         {
-            Token = tokenString
+            Token = token
         };
 
         return tokenRespDto;
